@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   Target,
   TrendingUp,
-  Heart
+  Heart,
+  ChevronDown
 } from 'lucide-react';
 import { useOnchainStore } from '@/lib/store';
 import { getAllProjects } from '@/lib/contract';
@@ -74,11 +75,29 @@ function CrowdfundingProjectsPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { isConnected } = useOnchainStore();
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isFilterOpen) {
+        const target = event.target as Element;
+        if (!target.closest('.relative')) {
+          setIsFilterOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isFilterOpen]);
 
   const loadProjects = async () => {
     try {
@@ -165,11 +184,11 @@ function CrowdfundingProjectsPageContent() {
   });
 
   const statusOptions = [
-    { value: 'all', label: 'All Status' },
-    { value: 'voting', label: 'Voting' },
-    { value: 'active', label: 'Active' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'rejected', label: 'Rejected' }
+    { value: 'all', label: 'All Status', icon: <Filter className="h-4 w-4" />, color: 'text-gray-600' },
+    { value: 'voting', label: 'Voting', icon: <Clock className="h-4 w-4" />, color: 'text-yellow-600' },
+    { value: 'active', label: 'Active', icon: <TrendingUp className="h-4 w-4" />, color: 'text-blue-600' },
+    { value: 'completed', label: 'Completed', icon: <CheckCircle className="h-4 w-4" />, color: 'text-green-600' },
+    { value: 'rejected', label: 'Rejected', icon: <AlertTriangle className="h-4 w-4" />, color: 'text-red-600' }
   ];
 
   if (loading) {
@@ -222,37 +241,62 @@ function CrowdfundingProjectsPageContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 items-center w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by title, description, or owner..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-full sm:w-64"
                 />
               </div>
               
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                  aria-label="Filter by status"
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  className="flex items-center gap-2 min-w-[140px] justify-between"
                 >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  <div className="flex items-center gap-2">
+                    {statusOptions.find(opt => opt.value === filterStatus)?.icon}
+                    <span>{statusOptions.find(opt => opt.value === filterStatus)?.label}</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {isFilterOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50">
+                    <div className="py-1">
+                      {statusOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setFilterStatus(option.value);
+                            setIsFilterOpen(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left hover:bg-muted flex items-center gap-2 transition-colors ${
+                            filterStatus === option.value ? 'bg-muted font-medium' : ''
+                          }`}
+                        >
+                          <span className={option.color}>{option.icon}</span>
+                          <span>{option.label}</span>
+                          {filterStatus === option.value && (
+                            <CheckCircle className="h-4 w-4 text-primary ml-auto" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            <div className="text-sm text-muted-foreground">
-              {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} found
+              <div className="text-sm text-muted-foreground">
+                {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''} found
+              </div>
             </div>
           </div>
         </motion.div>
