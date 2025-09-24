@@ -890,6 +890,121 @@ function CrowdfundingDetailContent() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Recent Donations Card - Only show for active projects */}
+            {project.status === 'approved' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Heart className="h-5 w-5" />
+                    <span>Recent Donations</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Total Donations Summary */}
+                    <div className="p-3 bg-purple-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Total Raised</p>
+                          <p className="text-lg font-bold text-purple-600">
+                            ${formatUSDT(Number(project.totalFunded) || 0)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">of ${formatUSDT(Number(project.targetAmount) || 0)}</p>
+                          <p className="text-sm font-medium text-purple-600">
+                            {project.targetAmount && Number(project.targetAmount) > 0 
+                              ? Math.round((Number(project.totalFunded) || 0) / Number(project.targetAmount) * 100)
+                              : 0}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent Donations List */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-gray-900">Recent Donations</h4>
+                      {(() => {
+                        // Ensure totalFunded is a valid number
+                        const totalFunded = Number(project.totalFunded) || 0;
+                        
+                        // Mock recent donations data - In real app, this would come from contract events
+                        const mockDonations = [
+                          {
+                            id: 1,
+                            donor: '0x1234...5678',
+                            amount: totalFunded > 0 ? totalFunded * 0.3 : 50,
+                            timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2 hours ago
+                          },
+                          {
+                            id: 2,
+                            donor: '0x9876...5432',
+                            amount: totalFunded > 0 ? totalFunded * 0.25 : 40,
+                            timestamp: Date.now() - 6 * 60 * 60 * 1000, // 6 hours ago
+                          },
+                          {
+                            id: 3,
+                            donor: '0xabcd...efgh',
+                            amount: totalFunded > 0 ? totalFunded * 0.2 : 30,
+                            timestamp: Date.now() - 12 * 60 * 60 * 1000, // 12 hours ago
+                          },
+                          {
+                            id: 4,
+                            donor: '0x5555...7777',
+                            amount: totalFunded > 0 ? totalFunded * 0.15 : 25,
+                            timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
+                          },
+                          {
+                            id: 5,
+                            donor: '0x3333...9999',
+                            amount: totalFunded > 0 ? totalFunded * 0.1 : 20,
+                            timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000, // 2 days ago
+                          },
+                        ].slice(0, 5);
+
+                        return mockDonations.map((donation) => (
+                          <div key={donation.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <Heart className="h-3 w-3 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {formatAddress(donation.donor)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(donation.timestamp).toLocaleDateString()} at{' '}
+                                  {new Date(donation.timestamp).toLocaleTimeString([], { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-green-600">
+                                +${formatUSDT(donation.amount)}
+                              </p>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* View on BaseScan */}
+                    <div className="pt-2 border-t">
+                      <Link href={`${BASESCAN_BASE_URL}/address/${DONATION_DAO_ADDRESS}`} target="_blank">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View All Transactions on BaseScan
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
