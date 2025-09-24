@@ -1,3 +1,35 @@
+<a name="readme-top"></a>
+
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+
+<br />
+<div align="center">
+  <a href="https://github.com/Decentra3/Transparent-Charity-DAO"
+  >
+    <img src="https://raw.githubusercontent.com/Decentra3/Transparent-Charity-DAO/refs/heads/main/public/screenshot.png" alt="Transparent Charity DAO" />
+  </a>
+
+  <h3 align="center">Transparent Charity DAO</h3>
+
+  <p align="center">
+    A decentralized charity platform built with Blockchain (Base Sepolia) + DAO governance + AI-assisted review to ensure transparency, fairness, and accountability for every donation.
+    <br />
+    <a href="https://github.com/Decentra3/Transparent-Charity-DAO"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <!-- <a href="https://your-demo-link.example">View Demo</a> · -->
+    <a href="https://github.com/Decentra3/Transparent-Charity-DAO/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/Decentra3/Transparent-Charity-DAO/issues">Request Feature</a>
+  </p>
+</div>
+
+---
+
 ## Transparent Charity DAO
 
 A decentralized charity platform built with Blockchain (Base Sepolia) + DAO governance + AI-assisted review to ensure transparency, fairness, and accountability for every donation.
@@ -160,3 +192,15 @@ PRs/Issues are welcome. Please describe changes clearly and include screenshots 
 
 ## License
 MIT
+
+<!-- MARKDOWN LINKS & IMAGES -->
+[contributors-shield]: https://img.shields.io/github/contributors/Decentra3/Transparent-Charity-DAO.svg?style=for-the-badge
+[contributors-url]: https://github.com/Decentra3/Transparent-Charity-DAO/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Decentra3/Transparent-Charity-DAO.svg?style=for-the-badge
+[forks-url]: https://github.com/Decentra3/Transparent-Charity-DAO/network/members
+[stars-shield]: https://img.shields.io/github/stars/Decentra3/Transparent-Charity-DAO.svg?style=for-the-badge
+[stars-url]: https://github.com/Decentra3/Transparent-Charity-DAO/stargazers
+[issues-shield]: https://img.shields.io/github/issues/Decentra3/Transparent-Charity-DAO.svg?style=for-the-badge
+[issues-url]: https://github.com/Decentra3/Transparent-Charity-DAO/issues
+[license-shield]: https://img.shields.io/github/license/Decentra3/Transparent-Charity-DAO.svg?style=for-the-badge
+[license-url]: https://github.com/Decentra3/Transparent-Charity-DAO/blob/main/LICENSE
