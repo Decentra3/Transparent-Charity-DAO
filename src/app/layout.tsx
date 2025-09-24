@@ -42,6 +42,14 @@ export default async function RootLayout({
           <ScrollToTop />
           <Header />
           <main className="pb-20 md:pb-0">{children}</main>
+          {/* Floating Faucet Button */}
+          <a
+            href="/faucet"
+            className="fixed right-4 bottom-20 md:bottom-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:opacity-90"
+            aria-label="USDT Faucet"
+          >
+            💧
+          </a>
           <MobileNav />
         </ContextProvider>
       </body>
