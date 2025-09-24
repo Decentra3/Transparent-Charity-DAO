@@ -1,0 +1,73 @@
+# Dự án: Từ Thiện Minh Bạch - Transparent Charity DAO -TCD
+
+## Tổng quan dự án
+
+Một nền tảng từ thiện minh bạch dựa trên Blockchain, nơi **user (donor/beneficiary)** có thể quyên góp hoặc gửi yêu cầu hỗ trợ, còn **DAO member** sẽ bỏ phiếu phê duyệt. Quá trình giải ngân diễn ra on-chain và được hiển thị minh bạch real-time. AI tích hợp (mock trong hackathon) hỗ trợ kiểm tra gian lận.
+
+---
+
+## Các View / Giao diện
+
+### 1. **Landing Page (Public)**
+
+* Thiết kế hiện đại, trực quan.
+* Hiển thị thông tin tổng quan về quỹ: số tiền hiện tại, số tiền đã giải ngân, số lượng dự án đã hỗ trợ.
+* Thống kê DAO uy tín (xếp hạng theo tổng USDT đã xử lý).
+* CTA: **Donate Now**, **Request Help**, **Login**.
+* Giới thiệu ngắn gọn về cách hệ thống hoạt động.
+* Dashboard dạng tab (overview, projects, DAO ranking, transparency). Người dùng có thể xem chi tiết mọi thông tin mà không cần login.
+
+### 2. **Login & Role Management**
+
+* Người dùng chỉ cần **connect wallet** khi muốn thực hiện hành động (donate, request help, vote).
+* Role được phân chia ở backend:
+
+  * **User** (Donor / Beneficiary).
+  * **DAO Member**.
+* Sau khi login → quay lại giao diện Dashboard với đầy đủ quyền tương ứng.
+
+### 3. **Dashboard (Public → Action cần login)**
+
+* Tab **Overview**: Tổng quỹ, lịch sử donation & payout.
+* Tab **Projects**: Danh sách dự án đang kêu gọi + trạng thái voting.
+* Tab **DAO Ranking**: Xếp hạng DAO theo uy tín và khối lượng giải ngân.
+* Tab **Transparency**: Toàn bộ transaction hash, minh bạch on-chain.
+* Người dùng click vào Donate/Request/Vote sẽ được nhắc login (connect wallet).
+
+### 4. **User Features (Donor / Beneficiary)**
+
+* **Donate:** Nhập số tiền → confirm transaction → cập nhật quỹ.
+* **Request Help:** Form nhập số tiền, lý do, upload bằng chứng.
+* **View Transparency:** Xem donation, request, kết quả vote, payout.
+* **Profile:** Trang thông tin cơ bản + mock KYC.
+
+### 5. **DAO Member Features**
+
+* Có tất cả quyền như User.
+* Thêm quyền **Vote** trên request help.
+* **Voting Page:**
+
+  * Danh sách request đang chờ xử lý.
+  * Xem chi tiết: lý do, bằng chứng, phân tích AI (mock).
+  * Chọn **Approve / Reject**.
+* **DAO Management:** Quản lý các request đã vote và kết quả giải ngân.
+
+### 6. **Vote Result & Disbursement**
+
+* Hiển thị tiến trình vote (approve/reject count).
+* Kết thúc voting → payout tự động → cập nhật balance.
+* Transaction hash on-chain minh bạch.
+
+---
+
+## Luồng Demo cụ thể (Click-Flow UI)
+
+1. User truy cập **Landing Page** → xem thông tin quỹ, DAO uy tín, các dự án đang mở.
+2. Nếu muốn hành động → click **Donate** hoặc **Request Help** → nhắc connect wallet.
+3. Login (connect wallet) thành công → quay lại Dashboard tab tương ứng.
+4. Nếu là **Donor** → click **Donate**, nhập số tiền → confirm transaction → Dashboard cập nhật.
+5. Nếu là **Beneficiary** → click **Request Help**, nhập form → request hiển thị ở trạng thái *Pending*.
+6. Nếu là **DAO Member** → vào **Voting Page**, chọn request → xem chi tiết → bỏ phiếu approve/reject.
+7. Khi voting hoàn tất → smart contract tự động payout → Dashboard cập nhật, hiện transaction hash.
+8. Người dùng bình thường chỉ được xem tiến trình vote và kết quả, DAO member mới có quyền vote.
+
