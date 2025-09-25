@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { getFundBalance, getActivities, isDaoMemberAddress } from '@/lib/contract'
+import { User } from '@/lib/api'
 
 type OnchainState = {
   isLoading: boolean
@@ -10,8 +11,10 @@ type OnchainState = {
   address: string | null
   isConnected: boolean
   isDaoMember: boolean
+  user: User | null
   refresh: () => Promise<void>
   setWallet: (address: string | null, isConnected: boolean) => Promise<void>
+  setUser: (user: User | null) => void
 }
 
 export const useOnchainStore = create<OnchainState>((set, get) => ({
@@ -23,6 +26,7 @@ export const useOnchainStore = create<OnchainState>((set, get) => ({
   address: null,
   isConnected: false,
   isDaoMember: false,
+  user: null,
   refresh: async () => {
     set({ isLoading: true, error: null })
     try {
@@ -54,6 +58,9 @@ export const useOnchainStore = create<OnchainState>((set, get) => ({
       // eslint-disable-next-line no-console
       console.warn('[store] setWallet isDaoMember check failed:', e)
     }
+  },
+  setUser: (user) => {
+    set({ user });
   },
 }))
 

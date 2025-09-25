@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { donateToProject } from '@/lib/contract';
 import { closeProjectOnChain } from '@/lib/contract';
 import { getIPFSUrl, getFileType, formatIPFSHash } from '@/lib/ipfs';
+import { useDonatesByProject } from '@/hooks/useApi';
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -116,13 +117,16 @@ function CrowdfundingDetailContent() {
   const [closing, setClosing] = useState(false);
   const [closeSuccessHash, setCloseSuccessHash] = useState<string | null>(null);
   const { showToast } = useToast();
+  
+  const { data: projectDonations, isLoading: donationsLoading } = useDonatesByProject(
+    project?.status === 'approved' ? params.id as string : ''
+  );
 
   useEffect(() => {
     (async () => {
       if (address) {
         const result = await isDaoMemberAddress(address as any)
         setIsDAOMember(result)
-        // eslint-disable-next-line no-console
         console.log('[CrowdfundingDetail] isDAOMember =', result, 'for', address)
       } else {
         setIsDAOMember(false)
@@ -925,57 +929,22 @@ function CrowdfundingDetailContent() {
                     {/* Recent Donations List */}
                     <div className="space-y-3">
                       <h4 className="text-sm font-medium text-gray-900">Recent Donations</h4>
-                      {(() => {
-                        // Ensure totalFunded is a valid number
-                        const totalFunded = Number(project.totalFunded) || 0;
-                        
-                        // Mock recent donations data - In real app, this would come from contract events
-                        const mockDonations = [
-                          {
-                            id: 1,
-                            donor: '0x1234...5678',
-                            amount: totalFunded > 0 ? totalFunded * 0.3 : 50,
-                            timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2 hours ago
-                          },
-                          {
-                            id: 2,
-                            donor: '0x9876...5432',
-                            amount: totalFunded > 0 ? totalFunded * 0.25 : 40,
-                            timestamp: Date.now() - 6 * 60 * 60 * 1000, // 6 hours ago
-                          },
-                          {
-                            id: 3,
-                            donor: '0xabcd...efgh',
-                            amount: totalFunded > 0 ? totalFunded * 0.2 : 30,
-                            timestamp: Date.now() - 12 * 60 * 60 * 1000, // 12 hours ago
-                          },
-                          {
-                            id: 4,
-                            donor: '0x5555...7777',
-                            amount: totalFunded > 0 ? totalFunded * 0.15 : 25,
-                            timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
-                          },
-                          {
-                            id: 5,
-                            donor: '0x3333...9999',
-                            amount: totalFunded > 0 ? totalFunded * 0.1 : 20,
-                            timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000, // 2 days ago
-                          },
-                        ].slice(0, 5);
-
-                        return mockDonations.map((donation) => (
-                          <div key={donation.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                      {donationsLoading ? (
+                        <div className="text-center py-4 text-muted-foreground">Loading donations...</div>
+                      ) : projectDonations && projectDonations.length > 0 ? (
+                        projectDonations.slice(0, 5).map((donation: any) => (
+                          <div key={donation._id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
                             <div className="flex items-center space-x-3">
                               <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
                                 <Heart className="h-3 w-3 text-green-600" />
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-900">
-                                  {formatAddress(donation.donor)}
+                                  {formatAddress(donation.donor_wallet)}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {new Date(donation.timestamp).toLocaleDateString()} at{' '}
-                                  {new Date(donation.timestamp).toLocaleTimeString([], { 
+                                  {new Date(donation.createdAt || donation.timestamp).toLocaleDateString()} at{' '}
+                                  {new Date(donation.createdAt || donation.timestamp).toLocaleTimeString([], { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
                                   })}
@@ -984,12 +953,25 @@ function CrowdfundingDetailContent() {
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-medium text-green-600">
-                                +${formatUSDT(donation.amount)}
+                                +${(parseFloat(donation.amount) / 1000000).toFixed(2)}
                               </p>
+                              {donation.tx_hash && (
+                                <Link
+                                  href={`${BASESCAN_BASE_URL}/tx/${donation.tx_hash}`}
+                                  target="_blank"
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  View TX
+                                </Link>
+                              )}
                             </div>
                           </div>
-                        ));
-                      })()}
+                        ))
+                      ) : (
+                        <div className="text-center py-4 text-muted-foreground">
+                          No donations yet for this project
+                        </div>
+                      )}
                     </div>
 
                     {/* View on BaseScan */}
