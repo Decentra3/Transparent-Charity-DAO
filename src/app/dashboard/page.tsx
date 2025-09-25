@@ -2,13 +2,14 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Users, TrendingUp, Activity, Clock, CheckCircle, Vote } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, Activity, Clock, CheckCircle, Vote, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract';
 import { formatUSDT, formatAddress } from '@/lib/utils';
 import { useOnchainStore } from '@/lib/store';
 import { getDashboardStats } from '@/lib/contract';
+import { useTransactions } from '@/hooks/useApi';
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -50,6 +51,9 @@ function DashboardContent() {
   const { isLoading, isLoaded, refresh } = useOnchainStore();
   const [stats, setStats] = useState<{ fund: string; disbursed: string; projectsVoting: number; allProjects: number } | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  
+  // Get recent transactions
+  const { data: transactions, isLoading: transactionsLoading } = useTransactions(10);
   
   useEffect(() => {
     if (!isLoaded && !isLoading) refresh();
@@ -137,7 +141,7 @@ function DashboardContent() {
             </Card>
           </div>
 
-          {/* Recent Activity - placeholder with BaseScan link */}
+          {/* Recent Activity */}
           <Card className="border border-border bg-card">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -148,14 +152,57 @@ function DashboardContent() {
                 <Link
                   href={`${BASESCAN_BASE_URL}/address/${DONATION_DAO_ADDRESS}`}
                   target="_blank"
-                  className="text-sm text-primary hover:underline"
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
                 >
                   View on BaseScan
+                  <ExternalLink className="h-3 w-3" />
                 </Link>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="p-6 text-center text-muted-foreground">No recent activity displayed. Use BaseScan to explore transactions.</div>
+              {transactionsLoading ? (
+                <div className="p-6 text-center text-muted-foreground">Loading recent transactions...</div>
+              ) : transactions && transactions.length > 0 ? (
+                <div className="space-y-4">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+                      <div className="flex items-center space-x-3">
+                        {getStatusIcon(tx.status)}
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-sm">
+                              {formatAddress(tx.from_address)} → {formatAddress(tx.to_address)}
+                            </span>
+                            <Badge variant={getStatusColor(tx.status)} className="text-xs">
+                              {tx.status}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {tx.type} • {new Date(tx.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-sm">
+                          {formatUSDT(tx.amount)}
+                        </div>
+                        <Link
+                          href={`${BASESCAN_BASE_URL}/tx/${tx.transaction_hash}`}
+                          target="_blank"
+                          className="text-xs text-primary hover:underline flex items-center gap-1 justify-end mt-1"
+                        >
+                          View TX
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-muted-foreground">
+                  No recent transactions found. Use BaseScan to explore more transactions.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
