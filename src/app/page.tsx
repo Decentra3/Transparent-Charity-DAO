@@ -1,18 +1,23 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ArrowRight, Shield, Users, TrendingUp, Heart, Vote, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatUSDT } from '@/lib/utils';
 import { useOnchainStore } from '@/lib/store';
 import Link from 'next/link';
-import { DONATION_DAO_ADDRESS } from '@/lib/abi/DonationDAO';
-import { BASESCAN_BASE_URL } from '@/lib/contract';
+import { BASESCAN_BASE_URL, DONATION_DAO_ADDRESS } from '@/lib/contract';
 
 export default function Home() {
+  type Activity = {
+    id: number | string;
+    activityType: number;
+    amountOrTarget?: number | string | null;
+    title?: string | null;
+    description?: string | null;
+  };
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -30,8 +35,8 @@ export default function Home() {
   };
 
   const { isLoading, isLoaded, fundBalance, activities, refresh } = useOnchainStore();
-  const totalProjects = activities.filter((a: any) => a.activityType === 1).length; // Projects = 1
-  const activeRequests = activities.filter((a: any) => a.activityType === 0).length; // Requests = 0
+  const totalProjects = activities.filter((a: Activity) => a.activityType === 1).length; // Projects = 1
+  const activeRequests = activities.filter((a: Activity) => a.activityType === 0).length; // Requests = 0
 
   useEffect(() => {
     if (!isLoaded && !isLoading) refresh();
@@ -235,9 +240,9 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {activities
-              .filter((a: any) => a.activityType === 1) // Only projects
+              .filter((a: Activity) => a.activityType === 1) // Only projects
               .slice(0, 3)
-              .map((p: any, index: number) => (
+              .map((p: Activity, index: number) => (
               <motion.div
                 key={String(p.id)}
                 initial={{ opacity: 0, y: 20 }}
@@ -327,6 +332,61 @@ export default function Home() {
             ].map((item, index) => (
               <motion.div
                 key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+                viewport={{ once: true }}
+              >
+                <Card className="text-center h-full border border-border bg-card">
+                  <CardContent className="pt-8">
+                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <item.icon className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="mb-4">
+                      <Badge variant="outline" className="mb-3 text-primary border-border">Step {item.step}</Badge>
+                      <h3 className="text-xl font-semibold">{item.title}</h3>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">{item.description}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-20 mb-10">
+            <h3 className="text-2xl md:text-3xl font-bold mb-3">Crowdfunding Flow</h3>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Open a project, rally donors, and receive funds transparently when targets are met</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {[
+              {
+                step: 1,
+                title: "Create Project",
+                description: "Proposers define title, goal in USDT, and clear impact description",
+                icon: TrendingUp
+              },
+              {
+                step: 2,
+                title: "DAO Voting",
+                description: "DAO members vote to approve the campaign before opening to public",
+                icon: Vote
+              },
+              {
+                step: 3,
+                title: "Public Donation",
+                description: "Once approved, everyone can donate USDT to support the campaign until target is met or deadline passes",
+                icon: Users
+              },
+              {
+                step: 4,
+                title: "Disbursement",
+                description: "Funds are transferred to the owner when the owner close the campaign",
+                icon: Shield
+              }
+            ].map((item, index) => (
+              <motion.div
+                key={`cf-${index}`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
