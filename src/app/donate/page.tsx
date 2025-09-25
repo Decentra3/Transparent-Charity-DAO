@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { useOnchainStore } from '@/lib/store';
 import { donateToFund } from '@/lib/contract';
 import { formatUSDT } from '@/lib/utils';
+import { useDonates, useDonatesByDonor } from '@/hooks/useApi';
 
 export default function DonatePage() {
   return (
@@ -31,8 +32,12 @@ function DonatePageContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'yours'>('all');
-  const [history, setHistory] = useState<Array<{ txHash: string; amount: string; from?: string; timestamp: number }>>([]);
+  const [localHistory, setLocalHistory] = useState<Array<{ txHash: string; amount: string; from?: string; timestamp: number }>>([]);
   const { isConnected, connectWallet, address } = useWallet();
+  
+  // Get donations from API
+  const { data: allDonations, isLoading: allDonationsLoading } = useDonates();
+  const { data: userDonations, isLoading: userDonationsLoading } = useDonatesByDonor(address || '');
 
   const quickAmounts = [10, 50, 100, 500, 1000];
 
@@ -50,8 +55,8 @@ function DonatePageContent() {
     try {
       const { hash } = await donateToFund(donationAmount);
       setTxHash(hash as string);
-      setHistory(prev => [
-        { txHash: hash as string, amount: donationAmount, from: address || undefined, timestamp: Date.now() },
+      setLocalHistory(prev => [
+        { txHash: hash as string, amount: `${parseInt(donationAmount) * 1000000}`, from: address || undefined, timestamp: Date.now() },
         ...prev,
       ]);
       setShowSuccess(true);
@@ -291,7 +296,12 @@ function DonatePageContent() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {activeTab === 'yours' && !isConnected ? (
+              {(activeTab === 'all' ? allDonationsLoading : userDonationsLoading) ? (
+                <div className="text-center py-6">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-muted-foreground">Loading donations...</p>
+                </div>
+              ) : activeTab === 'yours' && !isConnected ? (
                 <div className="text-center py-6">
                   <p className="text-muted-foreground mb-3">Connect your wallet to view your donations</p>
                   <Button onClick={connectWallet}>
@@ -304,29 +314,94 @@ function DonatePageContent() {
                     <thead>
                       <tr className="text-left text-muted-foreground">
                         <th className="py-2">Time</th>
+                        <th className="py-2">Donor</th>
                         <th className="py-2">Amount (USDT)</th>
-                        <th className="py-2">Tx</th>
+                        <th className="py-2">Tx Hash</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(history
-                        .filter(h => (activeTab === 'yours' ? h.from && address && h.from.toLowerCase() === address.toLowerCase() : true))
-                      ).slice(0, 20).map((h, i) => (
-                        <tr key={`${h.txHash}-${i}`} className="border-t border-border">
-                          <td className="py-2 text-muted-foreground">{new Date(h.timestamp).toLocaleString()}</td>
-                          <td className="py-2 font-medium">{h.amount}</td>
-                          <td className="py-2">
-                            <Link href={`${BASESCAN_BASE_URL}/tx/${h.txHash}`} target="_blank" className="text-primary hover:underline">
-                              {h.txHash.slice(0, 8)}...{h.txHash.slice(-6)}
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                      {history.length === 0 && (
-                        <tr>
-                          <td className="py-6 text-center text-muted-foreground" colSpan={3}>No local donations yet</td>
-                        </tr>
-                      )}
+                      {(() => {
+                        // Get the appropriate API data based on active tab
+                        const apiData = activeTab === 'yours' ? userDonations : allDonations;
+                        
+                        // Combine API donations with local history
+                        const combinedDonations = [
+                          ...localHistory.map(h => ({
+                            _id: h.txHash,
+                            donor_wallet: h.from || '',
+                            amount: h.amount,
+                            project_id: 'community-fund',
+                            tx_hash: h.txHash,
+                            createdAt: new Date(h.timestamp).toISOString(),
+                            updatedAt: new Date(h.timestamp).toISOString(),
+                            donateType: 'direct'
+                          })),
+                          ...(Array.isArray(apiData) ? apiData : [])
+                        ];
+                        
+                        // For "yours" tab, filter local history to match current user
+                        let filteredDonations = combinedDonations;
+                        if (activeTab === 'yours') {
+                          filteredDonations = combinedDonations.filter(donation => {
+                            // API data is already filtered by backend, only filter local history
+                            if (donation.tx_hash && localHistory.some(h => h.txHash === donation.tx_hash)) {
+                              return address && donation.donor_wallet.toLowerCase() === address.toLowerCase();
+                            }
+                            return true; // Keep API data as is
+                          });
+                        }
+                        
+                        // Sort by date (newest first) and take first 20
+                        const sortedDonations = filteredDonations
+                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                          .slice(0, 20);
+                          
+                        return sortedDonations.map((donation, i) => (
+                          <tr key={`${donation._id}-${i}`} className="border-t border-border">
+                            <td className="py-2 text-muted-foreground">
+                              {new Date(donation.createdAt).toLocaleString()}
+                            </td>
+                            <td className="py-2 font-mono text-xs">
+                              {donation.donor_wallet ? 
+                                `${donation.donor_wallet.slice(0, 6)}...${donation.donor_wallet.slice(-4)}` : 
+                                'Unknown'
+                              }
+                            </td>
+                            <td className="py-2 font-medium">
+                              ${(parseFloat(donation.amount) / 1000000).toFixed(2)}
+                            </td>
+                            <td className="py-2 text-xs">
+                              {donation.tx_hash ? (
+                                <Link 
+                                  href={`${BASESCAN_BASE_URL}/tx/${donation.tx_hash}`} 
+                                  target="_blank" 
+                                  className="text-primary hover:underline font-mono"
+                                >
+                                  {donation.tx_hash.slice(0, 8)}...{donation.tx_hash.slice(-6)}
+                                </Link>
+                              ) : (
+                                <span className="text-muted-foreground">No hash</span>
+                              )}
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                      {(() => {
+                        const apiData = activeTab === 'yours' ? userDonations : allDonations;
+                        const hasApiData = apiData && apiData.length > 0;
+                        const hasLocalData = localHistory.length > 0;
+                        
+                        if (!hasApiData && !hasLocalData) {
+                          return (
+                            <tr>
+                              <td className="py-6 text-center text-muted-foreground" colSpan={4}>
+                                {activeTab === 'yours' ? 'No donations from your wallet found' : 'No donations found'}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return null;
+                      })()}
                     </tbody>
                   </table>
                 </div>

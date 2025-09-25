@@ -10,39 +10,43 @@ export interface ApiResponse<T = any> {
 
 // Donate Types
 export interface Donate {
-  id: string
+  _id: string
   donor_wallet: string
-  project_id: string
-  amount: number
-  transaction_hash?: string
-  created_at: string
-  updated_at: string
+  project_id: string | null
+  amount: string // Backend returns string, we'll convert to number in display
+  tx_hash?: string
+  createdAt: string
+  updatedAt: string
+  donateType?: string
+  timestamp?: string
 }
 
 // User Types
 export interface User {
-  id: string
+  _id: string
   wallet_address: string
-  name?: string
+  username?: string
   email?: string
   avatar?: string
-  kyc_status: 'pending' | 'verified' | 'rejected'
+  isKYC: boolean
   status: 'active' | 'blocked'
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 // Transaction Types
 export interface Transaction {
-  id: string
+  _id: string
+  tx_hash: string
   from_address: string
   to_address: string
-  amount: number
-  transaction_hash: string
-  type: 'donate' | 'withdraw' | 'transfer'
-  status: 'pending' | 'confirmed' | 'failed'
-  created_at: string
-  updated_at: string
+  amount: string // Backend returns string in wei
+  event_type: string
+  project_id: number | null
+  block_number: number | null
+  timestamp: string
+  createdAt: string
+  updatedAt: string
 }
 
 // Proposal Analysis Types

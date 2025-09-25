@@ -26,7 +26,19 @@ export function useDonates() {
   return useQuery({
     queryKey: queryKeys.donates,
     queryFn: () => apiClient.getDonates(),
-    select: (data) => data.success ? data.data : [],
+    select: (data: any) => {      
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+      
+      return [];
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
 }
@@ -35,7 +47,19 @@ export function useDonatesByDonor(donorWallet: string) {
   return useQuery({
     queryKey: queryKeys.donatesByDonor(donorWallet),
     queryFn: () => apiClient.getDonatesByDonor(donorWallet),
-    select: (data) => data.success ? data.data : [],
+    select: (data: any) => {      
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+      
+      return [];
+    },
     enabled: !!donorWallet,
     staleTime: 2 * 60 * 1000,
   })
@@ -45,7 +69,19 @@ export function useDonatesByProject(projectId: string) {
   return useQuery({
     queryKey: queryKeys.donatesByProject(projectId),
     queryFn: () => apiClient.getDonatesByProject(projectId),
-    select: (data) => data.success ? data.data : [],
+    select: (data: any) => {
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+      
+      return [];
+    },
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000,
   })
@@ -56,7 +92,19 @@ export function useUser(wallet: string) {
   return useQuery({
     queryKey: queryKeys.user(wallet),
     queryFn: () => apiClient.getUserByWallet(wallet),
-    select: (data) => data.success ? data.data : null,
+    select: (data: any) => {
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && data.data.data) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && data.data) {
+        return data.data;
+      }
+      
+      return null;
+    },
     enabled: !!wallet,
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -128,7 +176,19 @@ export function useTransactions(limit?: number) {
   return useQuery({
     queryKey: [...queryKeys.transactions, limit],
     queryFn: () => apiClient.getTransactions(limit),
-    select: (data) => data.success ? data.data : [],
+    select: (data: any) => {
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+      
+      return [];
+    },
     staleTime: 1 * 60 * 1000, // 1 minute
   })
 }
@@ -137,7 +197,19 @@ export function useTransactionsByAddress(address: string) {
   return useQuery({
     queryKey: queryKeys.transactionsByAddress(address),
     queryFn: () => apiClient.getTransactionsByAddress(address),
-    select: (data) => data.success ? data.data : [],
+    select: (data: any) => {
+      // Handle double-wrapped response: data.data.data
+      if (data.success && data.data && data.data.success && Array.isArray(data.data.data)) {
+        return data.data.data;
+      }
+      
+      // Handle normal response: data.data
+      if (data.success && Array.isArray(data.data)) {
+        return data.data;
+      }
+      
+      return [];
+    },
     enabled: !!address,
     staleTime: 1 * 60 * 1000,
   })
@@ -197,10 +269,10 @@ export function useDashboardStats() {
     queryFn: () => {
       if (!donates || !transactions) return null
       
-      const totalDonated = donates.reduce((sum, donate) => sum + donate.amount, 0)
+      const totalDonated = donates.reduce((sum: number, donate: any) => sum + (parseFloat(donate.amount) / 1000000), 0)
       const totalTransactions = transactions.length
-      const uniqueDonors = new Set(donates.map(d => d.donor_wallet)).size
-      const uniqueProjects = new Set(donates.map(d => d.project_id)).size
+      const uniqueDonors = new Set(donates.map((d: any) => d.donor_wallet)).size
+      const uniqueProjects = new Set(donates.map((d: any) => d.project_id).filter(Boolean)).size
       
       return {
         totalDonated,

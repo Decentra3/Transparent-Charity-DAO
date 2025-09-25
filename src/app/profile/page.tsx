@@ -23,15 +23,30 @@ import { RouteProtection } from '@/components/RouteProtection';
 import { useWallet } from '@/hooks/useWallet';
 import { useOnchainStore } from '@/lib/store';
 import { formatAddress, formatUSDT } from '@/lib/utils';
+import { useUser } from '@/hooks/useApi';
 
 function ProfilePageContent() {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: '',
+    username: '',
     email: ''
   });
   const { address, isConnected } = useWallet();
-  const { isDaoMember } = useOnchainStore();
+  const { isDaoMember, user, setUser } = useOnchainStore();
+  
+  // Fetch user data from API
+  const { data: apiUser, isLoading: userLoading } = useUser(address || '');
+  
+  // Sync API user data to global state
+  useEffect(() => {
+    if (apiUser && !user) {
+      setUser(apiUser);
+      setProfileData({
+        username: apiUser.username || '',
+        email: apiUser.email || ''
+      });
+    }
+  }, [apiUser, user, setUser]);
 
   useEffect(() => {
     // no-op: profile fields are empty by default
@@ -45,22 +60,29 @@ function ProfilePageContent() {
   const userTransactions: any[] = [];
 
   if (!isConnected || !address) return null;
+  
+  if (userLoading) {
+    return (
+      <div className="min-h-screen pt-8 pb-16 bg-[hsl(var(--background))]">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-8">
+            <div className="text-lg text-muted-foreground">Loading profile...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const getKycStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified': return 'success';
-      case 'pending': return 'warning';
-      case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
+  const getKycStatusColor = (isKYC: boolean) => {
+    return isKYC ? 'success' : 'warning';
   };
 
-  const getKycStatusIcon = (status: string) => {
-    switch (status) {
-      case 'verified': return <CheckCircle className="h-4 w-4" />;
-      case 'pending': return <Clock className="h-4 w-4" />;
-      default: return <Shield className="h-4 w-4" />;
-    }
+  const getKycStatusIcon = (isKYC: boolean) => {
+    return isKYC ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />;
+  };
+
+  const getKycStatusText = (isKYC: boolean) => {
+    return isKYC ? 'verified' : 'pending';
   };
 
   return (
@@ -130,16 +152,16 @@ function ProfilePageContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                      Full Name
+                      Username
                     </label>
                     {isEditing ? (
                       <Input
-                        value={profileData.name}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                        value={profileData.username}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
                       />
                     ) : (
                       <div className="p-3 bg-accent rounded-lg font-medium">
-                        {profileData.name || 'Not set'}
+                        {profileData.username || 'Not set'}
                       </div>
                     )}
                   </div>
@@ -185,9 +207,9 @@ function ProfilePageContent() {
                       KYC Status
                     </label>
                     <div className="flex items-center">
-                      <Badge variant={getKycStatusColor('pending')}>
-                        {getKycStatusIcon('pending')}
-                        <span className="ml-2 capitalize">pending</span>
+                      <Badge variant={getKycStatusColor(user?.isKYC || false)}>
+                        {getKycStatusIcon(user?.isKYC || false)}
+                        <span className="ml-2 capitalize">{getKycStatusText(user?.isKYC || false)}</span>
                       </Badge>
                     </div>
                   </div>
@@ -265,12 +287,14 @@ function ProfilePageContent() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Account Status:</span>
-                    <Badge variant="success">Active</Badge>
+                    <Badge variant={user?.status === 'active' ? 'success' : 'destructive'}>
+                      {user?.status || 'Unknown'}
+                    </Badge>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">KYC Status:</span>
-                    <Badge variant={getKycStatusColor('pending')}>
-                      pending
+                    <Badge variant={getKycStatusColor(user?.isKYC || false)}>
+                      {getKycStatusText(user?.isKYC || false)}
                     </Badge>
                   </div>
                 </div>

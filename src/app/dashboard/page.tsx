@@ -164,30 +164,27 @@ function DashboardContent() {
                 <div className="p-6 text-center text-muted-foreground">Loading recent transactions...</div>
               ) : transactions && transactions.length > 0 ? (
                 <div className="space-y-4">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+                  {transactions.map((tx: any) => (
+                    <div key={tx._id} className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
                       <div className="flex items-center space-x-3">
-                        {getStatusIcon(tx.status)}
+                        {getStatusIcon('confirmed')}
                         <div>
                           <div className="flex items-center space-x-2">
                             <span className="font-medium text-sm">
                               {formatAddress(tx.from_address)} → {formatAddress(tx.to_address)}
                             </span>
-                            <Badge variant={getStatusColor(tx.status)} className="text-xs">
-                              {tx.status}
+                            <Badge variant="secondary" className="text-xs">
+                              {tx.event_type}
                             </Badge>
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {tx.type} • {new Date(tx.created_at).toLocaleDateString()}
+                            {tx.event_type} • {new Date(tx.createdAt).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold text-sm">
-                          {formatUSDT(tx.amount)}
-                        </div>
                         <Link
-                          href={`${BASESCAN_BASE_URL}/tx/${tx.transaction_hash}`}
+                          href={`${BASESCAN_BASE_URL}/tx/${tx.tx_hash}`}
                           target="_blank"
                           className="text-xs text-primary hover:underline flex items-center gap-1 justify-end mt-1"
                         >
