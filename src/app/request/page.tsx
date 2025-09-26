@@ -19,23 +19,17 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RouteProtection } from '@/components/RouteProtection';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/useWallet';
 import { uploadToPinata } from '@/lib/upload';
-import { createRequestFund, createProjectOnChain, BASESCAN_BASE_URL, pickAiQuorumPercent, getFundBalance } from '@/lib/contract';
+import { createRequestFund, createProjectOnChain, BASESCAN_BASE_URL, getFundBalance } from '@/lib/contract';
+import { generateUniqueId, generateProjectId } from '@/lib/utils/id-generator';
+import { analyzeProposal, extractQuorumPercentage, type AIAnalysisResponse } from '@/lib/api/ai-analysis';
 
 type RequestType = 'request' | 'crowdfunding';
 
-interface AIAnalysis {
-  fraudScore: number;
-  confidence: number;
-  riskFactors: string[];
-  recommendation: string;
-  summary: string;
-}
 
 export default function RequestPage() {
   return (
@@ -65,8 +59,9 @@ function RequestPageContent() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
-  const [aiQuorum, setAiQuorum] = useState<number>(50);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResponse | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const { isConnected, connectWallet } = useWallet();
 
   const handleInputChange = (field: string, value: string) => {
@@ -83,12 +78,27 @@ function RequestPageContent() {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     setErrors(prev => ({ ...prev, upload: undefined }))
-    const limited = [...formData.evidence, ...files].slice(0, 5)
-    setFormData(prev => ({ ...prev, evidence: limited }));
-    setUploadProgress(Array(limited.length).fill(0))
-    const newCids: string[] = [...uploadedCids]
-    for (let i = 0; i < files.length && newCids.length < 5; i++) {
-      const idx = newCids.length
+    
+    // Validate file type - only allow .docx
+    const invalidFiles = files.filter(file => !file.name.toLowerCase().endsWith('.docx'));
+    if (invalidFiles.length > 0) {
+      setErrors(prev => ({ ...prev, upload: 'Only .docx files are allowed' }));
+      return;
+    }
+    
+    // Only allow 1 file
+    if (files.length > 1) {
+      setErrors(prev => ({ ...prev, upload: 'Only 1 file is allowed' }));
+      return;
+    }
+    
+    // Replace existing files with new file (only 1 file allowed)
+    setFormData(prev => ({ ...prev, evidence: files }));
+    setUploadProgress(Array(files.length).fill(0))
+    const newCids: string[] = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const idx = i
       try {
         const { cid } = await uploadToPinata(files[i], (p) => {
           setUploadProgress(prev => {
@@ -112,44 +122,48 @@ function RequestPageContent() {
     }));
   };
 
-  const mockAiAnalysis = () => {
-    // Simulate AI analysis based on form data
-    const amount = parseFloat(formData.amount || '0');
-    const reasonLength = formData.reason.length;
-    const hasEvidence = formData.evidence.length > 0;
-    
-    let fraudScore = Math.random() * 40; // Base random score
-    const riskFactors: string[] = [];
-    let recommendation = 'approve';
-    
-    // Adjust based on amount
-    if (amount > 10000) {
-      fraudScore += 20;
-      riskFactors.push('High amount requested');
+  const runAIAnalysis = async () => {
+    if (formData.evidence.length === 0) {
+      setAnalysisError('Please upload a .docx file for AI analysis');
+      return;
     }
-    
-    // Adjust based on description quality
-    if (reasonLength < 50) {
-      fraudScore += 15;
-      riskFactors.push('Limited description provided');
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAiAnalysis(null);
+
+    try {
+      const projectId = generateProjectId();
+      const docFile = formData.evidence[0]; // We only allow 1 file now
+      const text = requestType === 'request' 
+        ? formData.description.slice(0, 500) // Limit text length
+        : `${formData.reason}: ${formData.description}`.slice(0, 500);
+
+      // Validate required fields
+      if (!text || text.trim().length === 0) {
+        setAnalysisError('Please provide description text for analysis');
+        return;
+      }
+
+      if (!docFile || docFile.size === 0) {
+        setAnalysisError('Please upload a valid .docx file');
+        return;
+      }
+
+
+      const result = await analyzeProposal({
+        projectId,
+        text,
+        docFile
+      });
+
+      setAiAnalysis(result);
+    } catch (error) {
+      console.error('AI analysis failed:', error);
+      setAnalysisError(error instanceof Error ? error.message : 'AI analysis failed');
+    } finally {
+      setIsAnalyzing(false);
     }
-    
-    // Adjust based on evidence
-    if (!hasEvidence) {
-      fraudScore += 25;
-      riskFactors.push('No supporting evidence uploaded');
-    }
-    
-    if (fraudScore > 70) recommendation = 'reject';
-    else if (fraudScore > 40) recommendation = 'review';
-    
-    return {
-      fraudScore: Math.round(fraudScore),
-      confidence: Math.round(85 + Math.random() * 10),
-      riskFactors,
-      recommendation,
-      summary: `Request appears ${fraudScore < 40 ? 'legitimate' : fraudScore < 70 ? 'needs review' : 'suspicious'}. ${hasEvidence ? 'Evidence provided supports the claim.' : 'Additional documentation recommended.'}`
-    };
   };
 
   const handleSubmit = async () => {
@@ -169,9 +183,14 @@ function RequestPageContent() {
       if (amount < 500) newErrors.amount = 'Crowdfunding minimum is 500 USDT'
     }
     
-    // Image upload validation - mandatory
+    // File upload validation - mandatory
     if (formData.evidence.length === 0) {
-      newErrors.evidence = 'At least one image is required'
+      newErrors.evidence = 'A .docx file is required'
+    }
+
+    // AI analysis validation - mandatory
+    if (!aiAnalysis) {
+      newErrors.submit = 'Please run AI analysis first'
     }
     
     if (requestType === 'crowdfunding') {
@@ -202,21 +221,30 @@ function RequestPageContent() {
             setErrors(prev => ({ ...prev, amount: `Amount exceeds fund balance (available $${available.toFixed(2)} USDT)` }))
             return
           }
-        } catch (e) {
+        } catch {
           // If fund check fails, let on-chain revert provide message
         }
       }
+      if (!aiAnalysis) {
+        setErrors(prev => ({ ...prev, submit: 'Please run AI analysis first' }));
+        return;
+      }
+
       const amount = formData.amount;
       const description = formData.description.slice(0, 100);
       const title = formData.reason.slice(0, 50);
       const proofHash = uploadedCids[0] || '';
-      const quorum = Math.max(50, Math.min(100, aiQuorum || pickAiQuorumPercent()))
+      const quorum = extractQuorumPercentage(aiAnalysis.data.minimum_quorum);
 
       if (requestType === 'request') {
-        const { hash } = await createRequestFund(amount, description || 'Request', proofHash, quorum);
+        // Generate unique request ID
+        const requestId = generateUniqueId('request');
+        const { hash } = await createRequestFund(requestId, amount, description || 'Request', proofHash, quorum);
         setTxHash(hash as string);
       } else {
-        const { hash } = await createProjectOnChain(title, description, proofHash, amount, parseInt(formData.campaignDuration || '30', 10), quorum);
+        // Generate unique project ID
+        const projectId = generateUniqueId('project');
+        const { hash } = await createProjectOnChain(projectId, title, description, proofHash, amount, parseInt(formData.campaignDuration || '30', 10), quorum);
         setTxHash(hash as string);
       }
       setShowSuccess(true);
@@ -424,20 +452,6 @@ function RequestPageContent() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* AI Quorum (50-100%) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    AI Quorum Threshold (%)
-                  </label>
-                  <Input
-                    type="number"
-                    value={aiQuorum}
-                    onChange={(e) => setAiQuorum(Number(e.target.value || 50))}
-                    min={50}
-                    max={100}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Minimum 50%. If lower, contract keeps 50%.</p>
-                </div>
                 {/* Amount */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
@@ -534,26 +548,25 @@ function RequestPageContent() {
                   <div className="text-center">
                       <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm text-muted-foreground mb-2">
-                        Upload supporting documents, photos, or certificates
+                        Upload supporting document (.docx only, max 1 file)
                         {formData.evidence.length === 0 && (
                           <span className="text-destructive ml-1">(Required)</span>
                         )}
                       </p>
                       <input
                         type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                        accept=".docx"
                         onChange={handleFileUpload}
                         className="hidden"
                         id="evidence-upload"
                       />
                       <label htmlFor="evidence-upload">
                         <Button variant="outline" size="sm" className="cursor-pointer" asChild>
-                          <span>Choose Files</span>
+                          <span>Choose File</span>
                         </Button>
                       </label>
                       <p className="text-xs text-muted-foreground mt-2">
-                        Max 5 files, 10MB each (JPG, PNG, PDF, DOC)
+                        Max 1 file, 10MB (DOCX only)
                       </p>
                        {errors.upload && <p className="text-xs text-red-600 mt-1">{errors.upload}</p>}
                        {errors.evidence && <p className="text-xs text-red-600 mt-1">{errors.evidence}</p>}
@@ -596,6 +609,107 @@ function RequestPageContent() {
                   )}
                 </div>
 
+                {/* AI Analysis Section */}
+                {formData.evidence.length > 0 && (
+                  <div className="mt-6 p-4 border border-border rounded-lg bg-card">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-medium flex items-center">
+                          <Brain className="h-4 w-4 mr-2 text-primary" />
+                          AI Analysis
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Analyze your proposal for fraud risk and get recommended quorum
+                        </p>
+                      </div>
+                      <Button
+                        onClick={runAIAnalysis}
+                        disabled={isAnalyzing || formData.evidence.length === 0}
+                        size="sm"
+                        className="ml-4"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-4 w-4 mr-2" />
+                            Run Analysis
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {analysisError && (
+                      <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <p className="text-sm text-destructive">{analysisError}</p>
+                      </div>
+                    )}
+
+                    {aiAnalysis && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-3 bg-accent rounded-lg">
+                            <p className="text-xs text-muted-foreground">Recommendation</p>
+                            <p className={`font-medium ${
+                              aiAnalysis.data.recommendation === 'approved' 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {aiAnalysis.data.recommendation === 'approved' ? 'Approved' : 'Rejected'}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-accent rounded-lg">
+                            <p className="text-xs text-muted-foreground">Fraud Score</p>
+                            <p className={`font-medium ${
+                              aiAnalysis.data.fraud_score < 30 
+                                ? 'text-green-600' 
+                                : aiAnalysis.data.fraud_score < 70 
+                                  ? 'text-yellow-600' 
+                                  : 'text-red-600'
+                            }`}>
+                              {aiAnalysis.data.fraud_score}%
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-accent rounded-lg">
+                          <p className="text-xs text-muted-foreground">Risk Level</p>
+                          <p className={`font-medium ${
+                            aiAnalysis.data.risk_level === 'Low' 
+                              ? 'text-green-600' 
+                              : aiAnalysis.data.risk_level === 'Medium' 
+                                ? 'text-yellow-600' 
+                                : 'text-red-600'
+                          }`}>
+                            {aiAnalysis.data.risk_level}
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-accent rounded-lg">
+                          <p className="text-xs text-muted-foreground">Recommended Quorum</p>
+                          <p className="font-medium text-primary">{aiAnalysis.data.minimum_quorum}</p>
+                        </div>
+
+                        {aiAnalysis.data.key_reasons.length > 0 && (
+                          <div className="p-3 bg-accent rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-2">Key Reasons</p>
+                            <ul className="space-y-1">
+                              {aiAnalysis.data.key_reasons.map((reason, index) => (
+                                <li key={index} className="text-sm text-muted-foreground">
+                                  • {reason}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Submit Button */}
                  <Button
                    onClick={handleSubmit}
@@ -603,6 +717,7 @@ function RequestPageContent() {
                      isSubmitting ||
                      !formData.amount ||
                      formData.evidence.length === 0 ||
+                     !aiAnalysis ||
                      (requestType === 'crowdfunding' && (!formData.reason || formData.reason.length > 50)) ||
                      (requestType === 'request' && !formData.description) ||
                      formData.description.length > 100

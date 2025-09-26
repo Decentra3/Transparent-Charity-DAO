@@ -322,9 +322,6 @@ function CrowdfundingProjectsPageContent() {
                       {getStatusIcon(project)}
                       <span className="ml-1">{getStatusText(project)}</span>
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      #{project.id}
-                    </span>
                   </div>
                   
                   <CardTitle className="text-lg line-clamp-2 mb-2">

@@ -161,7 +161,7 @@ export async function donateToFund(amount: string) {
   return { approveHash, hash }
 }
 
-export async function donateToProject(projectId: bigint, amount: string) {
+export async function donateToProject(projectId: string, amount: string) {
   await ensureBaseSepolia()
   const approveHash = await approveUSDT(DONATION_DAO_ADDRESS as Address, amount)
   const hash = await writeContract(config, {
@@ -174,7 +174,7 @@ export async function donateToProject(projectId: bigint, amount: string) {
   return { approveHash, hash }
 }
 
-export async function closeProjectOnChain(projectId: bigint) {
+export async function closeProjectOnChain(projectId: string) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -187,7 +187,7 @@ export async function closeProjectOnChain(projectId: bigint) {
 }
 
 
-export async function voteOnRequest(requestId: bigint, decision: boolean) {
+export async function voteOnRequest(requestId: string, decision: boolean) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -199,7 +199,7 @@ export async function voteOnRequest(requestId: bigint, decision: boolean) {
   return { hash }
 }
 
-export async function voteOnProjectOnChain(projectId: bigint, decision: boolean) {
+export async function voteOnProjectOnChain(projectId: string, decision: boolean) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -211,19 +211,19 @@ export async function voteOnProjectOnChain(projectId: bigint, decision: boolean)
   return { hash }
 }
 
-export async function createRequestFund(amount: string, description: string, proofHash: string, aiQuorumPercent: number = 50) {
+export async function createRequestFund(requestId: string, amount: string, description: string, proofHash: string, aiQuorumPercent: number = 50) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
     address: DONATION_DAO_ADDRESS as Address,
     functionName: 'createRequest',
-    args: [parseUnits(amount, 6), description, proofHash, BigInt(Math.max(50, Math.min(100, aiQuorumPercent)))],
+    args: [requestId, parseUnits(amount, 6), description, proofHash, BigInt(Math.max(50, Math.min(100, aiQuorumPercent)))],
   })
   await waitForTransactionReceipt(config, { hash })
   return { hash }
 }
 
-export async function createProjectOnChain(title: string, description: string, proofHash: string, targetAmount: string, durationDays: number, aiQuorumPercent: number = 50) {
+export async function createProjectOnChain(projectId: string, title: string, description: string, proofHash: string, targetAmount: string, durationDays: number, aiQuorumPercent: number = 50) {
   await ensureBaseSepolia()
   const nowSec = Math.floor(Date.now() / 1000)
   const deadline = BigInt(nowSec + Math.max(7, Math.min(365, durationDays)) * 24 * 60 * 60)
@@ -231,13 +231,13 @@ export async function createProjectOnChain(title: string, description: string, p
     abi: DonationDAOAbi as any,
     address: DONATION_DAO_ADDRESS as Address,
     functionName: 'createProject',
-    args: [title, description, proofHash, parseUnits(targetAmount, 6), deadline, BigInt(Math.max(50, Math.min(100, aiQuorumPercent)))],
+    args: [projectId, title, description, proofHash, parseUnits(targetAmount, 6), deadline, BigInt(Math.max(50, Math.min(100, aiQuorumPercent)))],
   })
   await waitForTransactionReceipt(config, { hash })
   return { hash }
 }
 
-export async function donorVoteOnRequest(requestId: bigint, decision: boolean) {
+export async function donorVoteOnRequest(requestId: string, decision: boolean) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -249,7 +249,7 @@ export async function donorVoteOnRequest(requestId: bigint, decision: boolean) {
   return { hash }
 }
 
-export async function finalizeRequestByDonors(requestId: bigint) {
+export async function finalizeRequestByDonors(requestId: string) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -261,7 +261,7 @@ export async function finalizeRequestByDonors(requestId: bigint) {
   return { hash }
 }
 
-export async function closeApprovedRequest(requestId: bigint) {
+export async function closeApprovedRequest(requestId: string) {
   await ensureBaseSepolia()
   const hash = await writeContract(config, {
     abi: DonationDAOAbi as any,
@@ -285,7 +285,7 @@ export async function getLatestContractEvents(limit: number = 5) {
 
 
 // ------- NEW: Detail readers to support pages showing full data (including proofHash) -------
-export async function getRequestById(requestId: bigint) {
+export async function getRequestById(requestId: string) {
   await ensureBaseSepolia()
   console.log('[contract] getRequestById', requestId)
   const res = await readContract(config, {
@@ -298,7 +298,7 @@ export async function getRequestById(requestId: bigint) {
   return res as any
 }
 
-export async function getProjectById(projectId: bigint) {
+export async function getProjectById(projectId: string) {
   await ensureBaseSepolia()
   console.log('[contract] getProjectById', projectId)
   const res = await readContract(config, {

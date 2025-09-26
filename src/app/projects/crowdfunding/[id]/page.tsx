@@ -153,9 +153,8 @@ function CrowdfundingDetailContent() {
         console.log('[CrowdfundingDetail] activity found =', foundProject)
 
         try {
-          const bnId = BigInt(idStr)
           const [onchain, memberCount] = await Promise.all([
-            getProjectById(bnId),
+            getProjectById(idStr),
             getDaoMemberCount(),
           ])
 
@@ -210,7 +209,7 @@ function CrowdfundingDetailContent() {
         abi: DonationDAOAbi as any,
         address: DONATION_DAO_ADDRESS as any,
         functionName: 'voteOnProject',
-        args: [BigInt(project.id), decision],
+        args: [project.id, decision],
       });
       
       await waitForTransactionReceipt(config, { hash });
@@ -248,7 +247,7 @@ function CrowdfundingDetailContent() {
     try {
       setClosing(true);
       setCloseSuccessHash(null);
-      const { hash } = await closeProjectOnChain(BigInt(project.id));
+      const { hash } = await closeProjectOnChain(project.id);
       setCloseSuccessHash(hash);
       await refresh();
     } catch (e) {
@@ -273,7 +272,7 @@ function CrowdfundingDetailContent() {
       setDonationSuccess(null); // Clear previous success notification
       
       // Use the helper function that handles USDT approval automatically
-      const result = await donateToProject(BigInt(project.id), donateAmount);
+      const result = await donateToProject(project.id, donateAmount);
       
       console.log('Donation successful:', result);
       

@@ -146,9 +146,8 @@ function RequestFundDetailContent() {
         console.log('[RequestDetail] activity found =', foundRequest)
 
         try {
-          const bnId = BigInt(idStr)
           const [onchain, memberCount] = await Promise.all([
-            getRequestById(bnId),
+            getRequestById(idStr),
             getDaoMemberCount(),
           ])
 
@@ -230,7 +229,7 @@ function RequestFundDetailContent() {
         abi: DonationDAOAbi,
         address: DONATION_DAO_ADDRESS as `0x${string}`,
         functionName: 'vote',
-        args: [BigInt(request.id), decision],
+        args: [request.id, decision],
       });
       
       await waitForTransactionReceipt(config, { hash });
@@ -258,7 +257,7 @@ function RequestFundDetailContent() {
     if (!request || !isConnected) return;
     try {
       setDonorVoting(true)
-      await donorVoteOnRequest(BigInt(request.id), decision)
+      await donorVoteOnRequest(request.id, decision)
       await refresh()
     } catch (e) {
       console.error('Donor vote failed:', e)
@@ -272,7 +271,7 @@ function RequestFundDetailContent() {
     if (!request || !isConnected) return;
     try {
       setDonorVoting(true)
-      await finalizeRequestByDonors(BigInt(request.id))
+      await finalizeRequestByDonors(request.id)
       await refresh()
     } catch (e) {
       console.error('Finalize failed:', e)
@@ -286,7 +285,7 @@ function RequestFundDetailContent() {
     if (!request || !isConnected) return;
     try {
       setDonorVoting(true)
-      await closeApprovedRequest(BigInt(request.id))
+      await closeApprovedRequest(request.id)
       await refresh()
     } catch (e) {
       console.error('Claim failed:', e)
@@ -348,7 +347,7 @@ function RequestFundDetailContent() {
                 const url = typeof window !== 'undefined' ? `${window.location.origin}/projects/requests/${request.id}` : '';
                 if (!url) return;
                 if (navigator.share) {
-                  navigator.share({ title: `Request #${request.id}`, url }).catch(() => {
+                  navigator.share({ title: `Request Fund`, url }).catch(() => {
                     navigator.clipboard.writeText(url);
                     showToast({ variant: 'success', title: 'Link copied', description: 'Share URL copied to clipboard' });
                   });
@@ -367,7 +366,7 @@ function RequestFundDetailContent() {
             <div>
               <div className="flex items-center space-x-2 mb-1">
                 <h1 className="text-3xl font-bold">
-                  Request Request #{request.id}
+                  Request Fund
                 </h1>
                 <Badge variant="outline" className="bg-transparent text-primary border-border">
                   Request Fund

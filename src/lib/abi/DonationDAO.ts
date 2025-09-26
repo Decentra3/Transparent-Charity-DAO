@@ -27,28 +27,29 @@ export const DonationDAOAbi = [
   ] },
   { "type": "function", "stateMutability": "nonpayable", "name": "donate", "inputs": [{"name":"amount","type":"uint256","internalType":"uint256"}], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "createRequest", "inputs": [
+      {"name":"requestId","type":"string","internalType":"string"},
       {"name":"amount","type":"uint256","internalType":"uint256"},
       {"name":"description","type":"string","internalType":"string"},
       {"name":"proofHash","type":"string","internalType":"string"},
       {"name":"aiQuorumPercent","type":"uint8","internalType":"uint8"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "vote", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"},
+      {"name":"requestId","type":"string","internalType":"string"},
       {"name":"decision","type":"bool","internalType":"bool"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "donorVoteOnRequest", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"},
+      {"name":"requestId","type":"string","internalType":"string"},
       {"name":"decision","type":"bool","internalType":"bool"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "finalizeRequestByDonors", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"}
+      {"name":"requestId","type":"string","internalType":"string"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "closeApprovedRequest", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"}
+      {"name":"requestId","type":"string","internalType":"string"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "view", "name": "getAllRequests", "inputs": [], "outputs": [{
       "name":"","type":"tuple[]","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"beneficiary","type":"address","internalType":"address"},
         {"name":"amount","type":"uint256","internalType":"uint256"},
         {"name":"description","type":"string","internalType":"string"},
@@ -68,7 +69,7 @@ export const DonationDAOAbi = [
     }] },
   { "type": "function", "stateMutability": "view", "name": "getAllProjects", "inputs": [], "outputs": [{
       "name":"","type":"tuple[]","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"owner","type":"address","internalType":"address"},
         {"name":"title","type":"string","internalType":"string"},
         {"name":"description","type":"string","internalType":"string"},
@@ -86,6 +87,7 @@ export const DonationDAOAbi = [
       ], "internalType":"struct DonationDAO.ProjectView[]"
     }] },
   { "type": "function", "stateMutability": "nonpayable", "name": "createProject", "inputs": [
+      {"name":"projectId","type":"string","internalType":"string"},
       {"name":"title","type":"string","internalType":"string"},
       {"name":"description","type":"string","internalType":"string"},
       {"name":"proofHash","type":"string","internalType":"string"},
@@ -94,19 +96,19 @@ export const DonationDAOAbi = [
       {"name":"aiQuorumPercent","type":"uint8","internalType":"uint8"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "voteOnProject", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"},
+      {"name":"projectId","type":"string","internalType":"string"},
       {"name":"decision","type":"bool","internalType":"bool"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "donateToProject", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"},
+      {"name":"projectId","type":"string","internalType":"string"},
       {"name":"amount","type":"uint256","internalType":"uint256"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "nonpayable", "name": "closeProject", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"}
+      {"name":"projectId","type":"string","internalType":"string"}
     ], "outputs": [] },
   { "type": "function", "stateMutability": "view", "name": "getActivities", "inputs": [], "outputs": [{
       "name":"","type":"tuple[]","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"activityType","type":"uint8","internalType":"enum DonationDAO.ActivityType"},
         {"name":"creator","type":"address","internalType":"address"},
         {"name":"title","type":"string","internalType":"string"},
@@ -119,7 +121,7 @@ export const DonationDAOAbi = [
       {"name":"_voter","type":"address","internalType":"address"}
     ], "outputs": [{
       "name":"","type":"tuple[]","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"activityType","type":"uint8","internalType":"enum DonationDAO.ActivityType"},
         {"name":"creator","type":"address","internalType":"address"},
         {"name":"title","type":"string","internalType":"string"},
@@ -129,10 +131,10 @@ export const DonationDAOAbi = [
       ], "internalType":"struct DonationDAO.ActivityItem[]"
     }] },
   { "type": "function", "stateMutability": "view", "name": "getRequestById", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"}
+      {"name":"requestId","type":"string","internalType":"string"}
     ], "outputs": [{
       "name":"","type":"tuple","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"beneficiary","type":"address","internalType":"address"},
         {"name":"amount","type":"uint256","internalType":"uint256"},
         {"name":"description","type":"string","internalType":"string"},
@@ -151,10 +153,10 @@ export const DonationDAOAbi = [
       ], "internalType":"struct DonationDAO.RequestView"
     }] },
   { "type": "function", "stateMutability": "view", "name": "getProjectById", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"}
+      {"name":"projectId","type":"string","internalType":"string"}
     ], "outputs": [{
       "name":"","type":"tuple","components": [
-        {"name":"id","type":"uint256","internalType":"uint256"},
+        {"name":"id","type":"string","internalType":"string"},
         {"name":"owner","type":"address","internalType":"address"},
         {"name":"title","type":"string","internalType":"string"},
         {"name":"description","type":"string","internalType":"string"},
@@ -172,15 +174,15 @@ export const DonationDAOAbi = [
       ], "internalType":"struct DonationDAO.ProjectView"
     }] },
   { "type": "function", "stateMutability": "view", "name": "hasVotedOnRequest", "inputs": [
-      {"name":"requestId","type":"uint256","internalType":"uint256"},
+      {"name":"requestId","type":"string","internalType":"string"},
       {"name":"voter","type":"address","internalType":"address"}
     ], "outputs": [{"name":"","type":"bool","internalType":"bool"}] },
   { "type": "function", "stateMutability": "view", "name": "hasVotedOnProject", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"},
+      {"name":"projectId","type":"string","internalType":"string"},
       {"name":"voter","type":"address","internalType":"address"}
     ], "outputs": [{"name":"","type":"bool","internalType":"bool"}] },
   { "type": "function", "stateMutability": "view", "name": "getProjectDonation", "inputs": [
-      {"name":"projectId","type":"uint256","internalType":"uint256"},
+      {"name":"projectId","type":"string","internalType":"string"},
       {"name":"donor","type":"address","internalType":"address"}
     ], "outputs": [{"name":"","type":"uint256","internalType":"uint256"}] },
   { "type": "function", "stateMutability": "view", "name": "daoMembers", "inputs": [
@@ -223,58 +225,58 @@ export const DonationDAOAbi = [
       {"name":"donor","type":"address","indexed":true,"internalType":"address"}
     ] },
   { "type": "event", "name": "RequestCreated", "inputs": [
-      {"name":"id","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"id","type":"string","indexed":true,"internalType":"string"},
       {"name":"beneficiary","type":"address","indexed":true,"internalType":"address"},
       {"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"}
     ] },
   { "type": "event", "name": "VoteCast", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"},
       {"name":"voter","type":"address","indexed":true,"internalType":"address"},
       {"name":"decision","type":"bool","indexed":false,"internalType":"bool"}
     ] },
   { "type": "event", "name": "DaoPhaseApproved", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"},
       {"name":"donorVoteDeadline","type":"uint256","indexed":false,"internalType":"uint256"}
     ] },
   { "type": "event", "name": "DonorVoteCast", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"},
       {"name":"donor","type":"address","indexed":true,"internalType":"address"},
       {"name":"decision","type":"bool","indexed":false,"internalType":"bool"}
     ] },
   { "type": "event", "name": "RequestFinalApproved", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"}
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"}
     ] },
   { "type": "event", "name": "PayoutSuccess", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"},
       {"name":"beneficiary","type":"address","indexed":true,"internalType":"address"},
       {"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"}
     ] },
   { "type": "event", "name": "RequestRejected", "inputs": [
-      {"name":"requestId","type":"uint256","indexed":true,"internalType":"uint256"}
+      {"name":"requestId","type":"string","indexed":true,"internalType":"string"}
     ] },
   { "type": "event", "name": "ProjectCreated", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"},
       {"name":"owner","type":"address","indexed":true,"internalType":"address"},
       {"name":"title","type":"string","indexed":false,"internalType":"string"}
     ] },
   { "type": "event", "name": "ProjectVoteCast", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"},
       {"name":"voter","type":"address","indexed":true,"internalType":"address"},
       {"name":"decision","type":"bool","indexed":false,"internalType":"bool"}
     ] },
   { "type": "event", "name": "ProjectApproved", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"}
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"}
     ] },
   { "type": "event", "name": "ProjectRejected", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"}
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"}
     ] },
   { "type": "event", "name": "ProjectDonation", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"},
       {"name":"donor","type":"address","indexed":true,"internalType":"address"},
       {"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"}
     ] },
   { "type": "event", "name": "ProjectClosed", "inputs": [
-      {"name":"projectId","type":"uint256","indexed":true,"internalType":"uint256"},
+      {"name":"projectId","type":"string","indexed":true,"internalType":"string"},
       {"name":"totalFunded","type":"uint256","indexed":false,"internalType":"uint256"}
     ] },
   { "type": "event", "name": "DaoMemberAdded", "inputs": [

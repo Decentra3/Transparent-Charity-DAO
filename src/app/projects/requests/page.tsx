@@ -376,9 +376,6 @@ function RequestFundsPageContent() {
                       {getStatusIcon(request.status)}
                       <span className="ml-1">{getStatusLabel(request.status)}</span>
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      #{request.id}
-                    </span>
                   </div>
 
                   <div className="flex items-center gap-2 mb-2">
