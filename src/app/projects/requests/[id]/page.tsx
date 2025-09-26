@@ -488,17 +488,6 @@ function RequestFundDetailContent() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setPreviewUrl(getIPFSUrl(request.proofHash));
-                              setIsPreviewOpen(true);
-                            }}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
                           {getIPFSUrl(request.proofHash) && (
                             <Button variant="outline" size="sm" asChild>
                               <a href={getIPFSUrl(request.proofHash)} download>
