@@ -2,13 +2,13 @@
 
 import { motion } from 'framer-motion';
 import { useEffect } from 'react';
-import { ArrowRight, Shield, Users, TrendingUp, Heart, Vote, Eye } from 'lucide-react';
+import { ArrowRight, Shield, Users, TrendingUp, Heart, Vote, Eye, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useOnchainStore } from '@/lib/store';
 import Link from 'next/link';
-import { BASESCAN_BASE_URL, DONATION_DAO_ADDRESS } from '@/lib/contract';
+import { BASESCAN_BASE_URL, DONATION_DAO_ADDRESS } from '@/lib/contract-config';
 
 export default function Home() {
   type Activity = {
@@ -305,11 +305,15 @@ export default function Home() {
               How It Works
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Simple, transparent process powered by blockchain and governed by the community
+              Simple, transparent process powered by blockchain, AI analysis, and governed by the community
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="text-center my-10">
+            <h3 className="text-xl md:text-2xl font-bold mb-3 text-primary">Request Help Flow</h3>
+            <p className="text-md text-muted-foreground max-w-2xl mx-auto">Submit a request, rally donors, and receive funds transparently when targets are met</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {[
               {
                 step: 1,
@@ -319,14 +323,26 @@ export default function Home() {
               },
               {
                 step: 2,
+                title: "AI Analysis",
+                description: "AI analyzes request authenticity and provides fraud risk assessment",
+                icon: Brain
+              },
+              {
+                step: 3,
                 title: "DAO Voting",
                 description: "DAO members review requests and vote on approval with AI assistance",
                 icon: Vote
               },
               {
-                step: 3,
-                title: "Auto Disbursement",
-                description: "Approved requests receive automatic on-chain disbursement with full transparency",
+                step: 4,
+                title: "Donor Voting",
+                description: "Approved requests go to donor community for final voting decision",
+                icon: Heart
+              },
+              {
+                step: 5,
+                title: "Fund Disbursement",
+                description: "Approved requests receive on-chain disbursement with full transparency",
                 icon: Shield
               }
             ].map((item, index) => (
@@ -353,12 +369,11 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="text-center mt-20 mb-10">
-            <h3 className="text-2xl md:text-3xl font-bold mb-3">Crowdfunding Flow</h3>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Open a project, rally donors, and receive funds transparently when targets are met</p>
+          <div className="text-center my-10">
+            <h3 className="text-xl md:text-2xl font-bold mb-3 text-primary">Crowdfunding Flow</h3>
+            <p className="text-md text-muted-foreground max-w-2xl mx-auto">Open a project, rally donors, and receive funds transparently when targets are met</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {[
               {
                 step: 1,
@@ -368,18 +383,24 @@ export default function Home() {
               },
               {
                 step: 2,
+                title: "AI Analysis",
+                description: "AI analyzes project feasibility and provides risk assessment",
+                icon: Brain
+              },
+              {
+                step: 3,
                 title: "DAO Voting",
                 description: "DAO members vote to approve the campaign before opening to public",
                 icon: Vote
               },
               {
-                step: 3,
+                step: 4,
                 title: "Public Donation",
                 description: "Once approved, everyone can donate USDT to support the campaign until target is met or deadline passes",
-                icon: Users
+                icon: Heart
               },
               {
-                step: 4,
+                step: 5,
                 title: "Disbursement",
                 description: "Funds are transferred to the owner when the owner close the campaign",
                 icon: Shield

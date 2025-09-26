@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Target, Calendar, TrendingUp, Clock, CheckCircle, AlertTriangle, Heart, Vote, ExternalLink, FileText, Image as ImageIcon, User, DollarSign, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
-import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract';
+import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract-config';
 import { getProjectById, getDaoMemberCount, isDaoMemberAddress } from '@/lib/contract';
 import { RouteProtection } from '@/components/RouteProtection';
 import { useWallet } from '@/hooks/useWallet';

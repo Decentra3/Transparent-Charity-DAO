@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RouteProtection } from '@/components/RouteProtection';
 import { useEffect, useState } from 'react';
-import { isDaoMemberAddress, getPendingVotesFor } from '@/lib/contract';
+import { getPendingVotesWithRole } from '@/lib/contract';
 import { useWallet } from '@/hooks/useWallet';
 import { useOnchainStore } from '@/lib/store';
 import { formatUSDT, formatAddress } from '@/lib/utils';
@@ -23,6 +23,7 @@ import { formatUSDT, formatAddress } from '@/lib/utils';
 function VotePageContent() {
   const { address, isConnected } = useWallet();
   const isDaoMember = useOnchainStore((s) => s.isDaoMember);
+  const isDonor = useOnchainStore((s) => s.isDonor);
   const [pendingVotes, setPendingVotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +43,8 @@ function VotePageContent() {
       setError(null);
       console.log('Loading pending votes for:', address);
       
-      const votes = await getPendingVotesFor(address);
-      console.log('Raw pending votes data:', votes);
+      const votes = await getPendingVotesWithRole(address);
+      console.log('Raw pending votes data with roles:', votes);
       
       // Transform the data to match the expected format
       const transformedVotes = votes.map((vote: any) => {
@@ -68,6 +69,9 @@ function VotePageContent() {
           createdAt: createdAt.toISOString(),
           votes: [], // Will be populated when we have voting data
           done: false, // All votes from getPendingVotesFor are pending
+          canVoteAsDao: vote.canVoteAsDao,
+          canVoteAsDonor: vote.canVoteAsDonor,
+          userRole: vote.userRole,
         };
       });
       
@@ -92,7 +96,7 @@ function VotePageContent() {
     );
   }
 
-  if (!isConnected || !isDaoMember) {
+  if (!isConnected || (!isDaoMember && !isDonor)) {
     return (
       <div className="min-h-screen pt-8 pb-16 bg-[hsl(var(--background))]">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,7 +104,14 @@ function VotePageContent() {
             <CardContent className="p-12 text-center">
               <VoteIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">Restricted Area</h3>
-              <p className="text-muted-foreground">Only DAO members can access the vote page.</p>
+              <p className="text-muted-foreground">
+                Only DAO members and donors can access the vote page.
+                {!isDaoMember && !isDonor && (
+                  <span className="block mt-2 text-sm">
+                    Connect your wallet and become a donor by making a donation.
+                  </span>
+                )}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -120,14 +131,27 @@ function VotePageContent() {
         >
           <div className="flex items-center space-x-3 mb-4">
             <Badge className="bg-transparent text-primary border-border">
-              ⚖️ DAO Governance
+              ⚖️ {isDaoMember ? 'DAO Governance' : 'Donor Voting'}
             </Badge>
+            {isDaoMember && (
+              <Badge variant="outline" className="text-primary border-border">
+                DAO Member
+              </Badge>
+            )}
+            {isDonor && !isDaoMember && (
+              <Badge variant="outline" className="text-primary border-border">
+                Donor
+              </Badge>
+            )}
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
             Vote on Pending Items
           </h1>
           <p className="text-lg text-muted-foreground">
-            Review and vote on pending requests and crowdfunding projects. Your decision helps ensure transparency and fairness.
+            {isDaoMember 
+              ? 'Review and vote on pending requests and crowdfunding projects. Your decision helps ensure transparency and fairness.'
+              : 'Vote on requests that have been approved by DAO members. Your vote helps determine if approved requests should receive funding.'
+            }
           </p>
           
           {error && (
@@ -225,6 +249,12 @@ function VotePageContent() {
                           {vote.type === 'crowdfunding' && (
                             <span className="ml-2 text-primary font-medium">(Crowdfunding)</span>
                           )}
+                          {vote.canVoteAsDao && (
+                            <span className="ml-2 text-blue-500 font-medium">(DAO Vote)</span>
+                          )}
+                          {vote.canVoteAsDonor && !vote.canVoteAsDao && (
+                            <span className="ml-2 text-green-500 font-medium">(Donor Vote)</span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -289,7 +319,7 @@ function VotePageContent() {
 
 export default function VotePage() {
   return (
-    <RouteProtection requiredRole="dao_member">
+    <RouteProtection requireConnection={true}>
       <VotePageContent />
     </RouteProtection>
   );

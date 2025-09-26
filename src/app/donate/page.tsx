@@ -2,18 +2,16 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Heart, Wallet, ArrowRight, CheckCircle, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { Heart, Wallet, ArrowRight, CheckCircle, DollarSign, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { RouteProtection } from '@/components/RouteProtection';
-import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract';
+import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract-config';
 import { useWallet } from '@/hooks/useWallet';
 import { useEffect, useState } from 'react';
 import { useOnchainStore } from '@/lib/store';
-import { donateToFund } from '@/lib/contract';
-import { formatUSDT } from '@/lib/utils';
+import { donateToFund, getDonorFlags } from '@/lib/contract';
 import { useDonates, useDonatesByDonor } from '@/hooks/useApi';
 
 export default function DonatePage() {
@@ -32,8 +30,23 @@ function DonatePageContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'yours'>('all');
+  const [donorInfo, setDonorInfo] = useState<{ isDonor: boolean; hasSbt: boolean; totalFundDonated: string } | null>(null)
   const [localHistory, setLocalHistory] = useState<Array<{ txHash: string; amount: string; from?: string; timestamp: number }>>([]);
   const { isConnected, connectWallet, address } = useWallet();
+  useEffect(() => {
+    (async () => {
+      if (address) {
+        try {
+          const flags = await getDonorFlags(address)
+          setDonorInfo(flags)
+        } catch {
+          setDonorInfo(null)
+        }
+      } else {
+        setDonorInfo(null)
+      }
+    })()
+  }, [address])
   
   // Get donations from API
   const { data: allDonations, isLoading: allDonationsLoading } = useDonates();
@@ -60,6 +73,12 @@ function DonatePageContent() {
         ...prev,
       ]);
       setShowSuccess(true);
+      if (address) {
+        try {
+          const flags = await getDonorFlags(address)
+          setDonorInfo(flags)
+        } catch {}
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -73,6 +92,29 @@ function DonatePageContent() {
   return (
     <div className="min-h-screen pt-8 pb-16 bg-[hsl(var(--background))]">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {isConnected && (
+          <div className="mb-4">
+            <Card className="bg-card border border-border">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {donorInfo?.hasSbt ? (
+                    <Badge className="bg-primary/10 text-primary border-border">Donor SBT</Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-border">No SBT yet</Badge>
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {donorInfo?.isDonor ? 'Thanks for being a donor!' : 'Donate to become a recognized donor (SBT)'}
+                  </span>
+                </div>
+                {donorInfo?.totalFundDonated && (
+                  <div className="text-sm">
+                    Total Donated: <span className="font-semibold">${Number(donorInfo.totalFundDonated).toFixed(2)} USDT</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
         {/* Header */}
         <motion.div
           className="text-center mb-12"

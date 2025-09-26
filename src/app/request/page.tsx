@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/useWallet';
 import { uploadToPinata } from '@/lib/upload';
-import { createRequestFund, createProjectOnChain, BASESCAN_BASE_URL } from '@/lib/contract';
+import { createRequestFund, createProjectOnChain, BASESCAN_BASE_URL, pickAiQuorumPercent, getFundBalance } from '@/lib/contract';
 
 type RequestType = 'request' | 'crowdfunding';
 
@@ -66,6 +66,7 @@ function RequestPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
+  const [aiQuorum, setAiQuorum] = useState<number>(50);
   const { isConnected, connectWallet } = useWallet();
 
   const handleInputChange = (field: string, value: string) => {
@@ -191,16 +192,31 @@ function RequestPageContent() {
 
     setIsSubmitting(true);
     try {
+      // Freshly validate treasury balance for request fund
+      if (requestType === 'request') {
+        try {
+          const currentFund = await getFundBalance()
+          const req = parseFloat(formData.amount || '0')
+          const available = parseFloat(currentFund || '0')
+          if (req > available) {
+            setErrors(prev => ({ ...prev, amount: `Amount exceeds fund balance (available $${available.toFixed(2)} USDT)` }))
+            return
+          }
+        } catch (e) {
+          // If fund check fails, let on-chain revert provide message
+        }
+      }
       const amount = formData.amount;
       const description = formData.description.slice(0, 100);
       const title = formData.reason.slice(0, 50);
       const proofHash = uploadedCids[0] || '';
+      const quorum = Math.max(50, Math.min(100, aiQuorum || pickAiQuorumPercent()))
 
       if (requestType === 'request') {
-        const { hash } = await createRequestFund(amount, description || 'Request', proofHash);
+        const { hash } = await createRequestFund(amount, description || 'Request', proofHash, quorum);
         setTxHash(hash as string);
       } else {
-        const { hash } = await createProjectOnChain(title, description, proofHash, amount, parseInt(formData.campaignDuration || '30', 10));
+        const { hash } = await createProjectOnChain(title, description, proofHash, amount, parseInt(formData.campaignDuration || '30', 10), quorum);
         setTxHash(hash as string);
       }
       setShowSuccess(true);
@@ -408,6 +424,20 @@ function RequestPageContent() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* AI Quorum (50-100%) */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    AI Quorum Threshold (%)
+                  </label>
+                  <Input
+                    type="number"
+                    value={aiQuorum}
+                    onChange={(e) => setAiQuorum(Number(e.target.value || 50))}
+                    min={50}
+                    max={100}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Minimum 50%. If lower, contract keeps 50%.</p>
+                </div>
                 {/* Amount */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">

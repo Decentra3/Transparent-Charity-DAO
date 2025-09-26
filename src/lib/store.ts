@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { getFundBalance, getActivities, isDaoMemberAddress } from '@/lib/contract'
+import { getFundBalance, getActivities, isDaoMemberAddress, getDonorFlags } from '@/lib/contract'
 import { User } from '@/lib/api'
 
 type OnchainState = {
@@ -11,6 +11,9 @@ type OnchainState = {
   address: string | null
   isConnected: boolean
   isDaoMember: boolean
+  isDonor: boolean
+  hasDonorSbt: boolean
+  totalFundDonated: string
   user: User | null
   refresh: () => Promise<void>
   setWallet: (address: string | null, isConnected: boolean) => Promise<void>
@@ -26,6 +29,9 @@ export const useOnchainStore = create<OnchainState>((set, get) => ({
   address: null,
   isConnected: false,
   isDaoMember: false,
+  isDonor: false,
+  hasDonorSbt: false,
+  totalFundDonated: '0',
   user: null,
   refresh: async () => {
     set({ isLoading: true, error: null })
@@ -47,14 +53,19 @@ export const useOnchainStore = create<OnchainState>((set, get) => ({
     set({ address, isConnected })
     try {
       let isDao = false
+      let donor = { isDonor: false, hasSbt: false, totalFundDonated: '0' }
       if (address && isConnected) {
         isDao = await isDaoMemberAddress(address)
+        try {
+          const flags = await getDonorFlags(address)
+          donor = { isDonor: flags.isDonor, hasSbt: flags.hasSbt, totalFundDonated: flags.totalFundDonated }
+        } catch {}
       }
-      set({ isDaoMember: isDao })
+      set({ isDaoMember: isDao, isDonor: donor.isDonor, hasDonorSbt: donor.hasSbt, totalFundDonated: donor.totalFundDonated })
       // eslint-disable-next-line no-console
       console.log('[store] isDaoMember resolved:', isDao)
     } catch (e) {
-      set({ isDaoMember: false })
+      set({ isDaoMember: false, isDonor: false, hasDonorSbt: false, totalFundDonated: '0' })
       // eslint-disable-next-line no-console
       console.warn('[store] setWallet isDaoMember check failed:', e)
     }

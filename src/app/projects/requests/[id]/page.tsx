@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle, AlertTriangle, Vote, ExternalLink, FileText, Image as ImageIcon, User, Calendar, DollarSign, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertTriangle, Vote, ExternalLink, FileText, User, Calendar, DollarSign, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
-import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract';
-import { getRequestById, getDaoMemberCount, isDaoMemberAddress } from '@/lib/contract';
+import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract-config';
+import { getRequestById, getDaoMemberCount, isDaoMemberAddress, donorVoteOnRequest, finalizeRequestByDonors, closeApprovedRequest } from '@/lib/contract';
 import { RouteProtection } from '@/components/RouteProtection';
 import { useWallet } from '@/hooks/useWallet';
 import { useOnchainStore } from '@/lib/store';
@@ -25,6 +25,10 @@ const getStatusIcon = (status: string) => {
     case 'approved':
     case 'disbursed':
       return <CheckCircle className="h-4 w-4 text-green-500" />;
+    case 'waiting_claim':
+      return <Clock className="h-4 w-4 text-orange-500" />;
+    case 'donor_voting':
+      return <Vote className="h-4 w-4 text-yellow-500" />;
     case 'voting':
     case 'pending':
       return <Clock className="h-4 w-4 text-yellow-500" />;
@@ -40,6 +44,10 @@ const getStatusColor = (status: string): 'default' | 'secondary' | 'destructive'
     case 'approved':
     case 'disbursed':
       return 'default';
+    case 'waiting_claim':
+      return 'secondary';
+    case 'donor_voting':
+      return 'secondary';
     case 'voting':
     case 'pending':
       return 'secondary';
@@ -52,6 +60,10 @@ const getStatusColor = (status: string): 'default' | 'secondary' | 'destructive'
 
 const formatStatus = (status: string) => {
   switch (status) {
+    case 'donor_voting':
+      return 'Donor Voting';
+    case 'waiting_claim':
+      return 'Waiting Claim';
     case 'voting':
       return 'Voting';
     case 'disbursed':
@@ -70,7 +82,7 @@ const formatStatus = (status: string) => {
 };
 
 // Mock AI Analysis data
-const getMockAIAnalysis = (requestId: string) => ({
+const getMockAIAnalysis = () => ({
   fraudScore: Math.floor(Math.random() * 100),
   recommendation: Math.random() > 0.5 ? 'approve' : 'reject',
   confidence: Math.floor(Math.random() * 40) + 60,
@@ -88,14 +100,30 @@ export default function RequestFundDetailPage() {
 
 function RequestFundDetailContent() {
   const params = useParams();
-  const router = useRouter();
   const { isConnected, address } = useWallet();
   const { showToast } = useToast();
   const { isLoading, isLoaded, activities, refresh } = useOnchainStore();
-  const [request, setRequest] = useState<any>(null);
+  const [request, setRequest] = useState<{
+    id: string;
+    beneficiaryAddress: string;
+    amount: number;
+    description: string;
+    proofHash: string;
+    createdAt: string;
+    status: string;
+    aiAnalysis: {
+      fraudScore: number;
+      recommendation: string;
+      confidence: number;
+      riskFactors: string[];
+      positiveFactors: string[];
+    };
+    quorumPercent: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
   const [voteProgress, setVoteProgress] = useState({ approve: 0, reject: 0, total: 0 });
+  const [donorPhase, setDonorPhase] = useState<{ active: boolean; deadline?: number; approve?: number; reject?: number } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
@@ -110,7 +138,7 @@ function RequestFundDetailContent() {
         // eslint-disable-next-line no-console
         console.log('[RequestDetail] params.id =', idStr)
 
-        const foundRequest = activities.find((activity: any) => 
+        const foundRequest = activities.find((activity: { activityType: number; id: string | number; creator?: string; description?: string; creationTimestamp?: number }) => 
           activity.activityType === 0 && String(activity.id) === idStr
         );
 
@@ -130,21 +158,43 @@ function RequestFundDetailContent() {
           console.log('[RequestDetail] daoMemberCount =', memberCount)
 
           setVoteProgress({
-            approve: Number(onchain.approveCount ?? 0n),
-            reject: Number(onchain.rejectCount ?? 0n),
-            total: Number(memberCount ?? 0n),
+            approve: Number(onchain.approveCount ?? BigInt(0)),
+            reject: Number(onchain.rejectCount ?? BigInt(0)),
+            total: Number(memberCount ?? BigInt(0)),
           })
 
           setRequest({
             id: idStr,
             beneficiaryAddress: (onchain.beneficiary as string) || (foundRequest?.creator as string) || '',
-            amount: Number(onchain.amount ?? 0n) / 1e6,
+            amount: Number(onchain.amount ?? BigInt(0)) / 1e6,
             description: (onchain.description as string) || (foundRequest?.description as string) || '',
             proofHash: (onchain.proofHash as string) || '',
             createdAt: new Date(Number(foundRequest?.creationTimestamp || 0) * 1000).toISOString(),
-            status: onchain.done ? (onchain.paid ? 'disbursed' : 'rejected') : 'voting',
-            aiAnalysis: getMockAIAnalysis(idStr),
+            status: onchain.done
+              ? (onchain.paid ? 'disbursed' : 'rejected')
+              : onchain.daoDecisionMade
+                ? (onchain.daoApproved 
+                    ? (onchain.donorVoteDeadline > 0 && Date.now() / 1000 > Number(onchain.donorVoteDeadline)
+                        ? (Number(onchain.donorApproveCount) >= (Number(onchain.donorApproveCount) + Number(onchain.donorRejectCount)) * Number(onchain.quorumPercent) / 100
+                            ? 'waiting_claim' 
+                            : 'rejected')
+                        : 'donor_voting')
+                    : 'rejected')
+                : 'voting',
+            aiAnalysis: getMockAIAnalysis(),
+            quorumPercent: Number(onchain.quorumPercent ?? 50),
           });
+
+          // Donor vote phase detection via extra reader (extend ABI if needed). Here we infer from contract state via store not available.
+          // Fallback: Try reading fields if present on "onchain" (depends on viem decoding). Use optional chaining safely.
+          const dvDeadline = Number((onchain as { donorVoteDeadline?: bigint })?.donorVoteDeadline || 0)
+          const dvApprove = Number((onchain as { donorApproveCount?: bigint })?.donorApproveCount || 0)
+          const dvReject = Number((onchain as { donorRejectCount?: bigint })?.donorRejectCount || 0)
+          if (dvDeadline && dvDeadline > 0 && !onchain.done && onchain.daoDecisionMade && onchain.daoApproved) {
+            setDonorPhase({ active: Date.now() / 1000 <= dvDeadline, deadline: dvDeadline, approve: dvApprove, reject: dvReject })
+          } else {
+            setDonorPhase(null)
+          }
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[RequestDetail] error fetching onchain detail:', err)
@@ -161,7 +211,7 @@ function RequestFundDetailContent() {
   useEffect(() => {
     (async () => {
       if (address) {
-        const result = await isDaoMemberAddress(address as any)
+        const result = await isDaoMemberAddress(address as string)
         setIsDAOMember(result)
         // eslint-disable-next-line no-console
         console.log('[RequestDetail] isDAOMember =', result, 'for', address)
@@ -177,8 +227,8 @@ function RequestFundDetailContent() {
     try {
       setVoting(true);
       const hash = await writeContract(config, {
-        abi: DonationDAOAbi as any,
-        address: DONATION_DAO_ADDRESS as any,
+        abi: DonationDAOAbi,
+        address: DONATION_DAO_ADDRESS as `0x${string}`,
         functionName: 'vote',
         args: [BigInt(request.id), decision],
       });
@@ -202,6 +252,49 @@ function RequestFundDetailContent() {
       setVoting(false);
     }
   };
+
+  const [donorVoting, setDonorVoting] = useState(false)
+  const handleDonorVote = async (decision: boolean) => {
+    if (!request || !isConnected) return;
+    try {
+      setDonorVoting(true)
+      await donorVoteOnRequest(BigInt(request.id), decision)
+      await refresh()
+    } catch (e) {
+      console.error('Donor vote failed:', e)
+      alert('Donor vote failed. Try again.')
+    } finally {
+      setDonorVoting(false)
+    }
+  }
+
+  const handleFinalize = async () => {
+    if (!request || !isConnected) return;
+    try {
+      setDonorVoting(true)
+      await finalizeRequestByDonors(BigInt(request.id))
+      await refresh()
+    } catch (e) {
+      console.error('Finalize failed:', e)
+      alert('Finalize failed. Try again.')
+    } finally {
+      setDonorVoting(false)
+    }
+  }
+
+  const handleClaim = async () => {
+    if (!request || !isConnected) return;
+    try {
+      setDonorVoting(true)
+      await closeApprovedRequest(BigInt(request.id))
+      await refresh()
+    } catch (e) {
+      console.error('Claim failed:', e)
+      alert('Claim failed. Try again.')
+    } finally {
+      setDonorVoting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -396,9 +489,9 @@ function RequestFundDetailContent() {
               </Card>
             )}
 
-            {/* Voting Progress - Only show when voting is active */}
+            {/* DAO Voting Progress */}
             {request.status === 'voting' && (
-              <Card className="bg-card border border-border">
+            <Card className="bg-card border border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Vote className="h-5 w-5 text-primary" />
@@ -427,6 +520,10 @@ function RequestFundDetailContent() {
                     Total DAO Members: {voteProgress.total}
                   </div>
                   
+                  <div className="text-center text-sm text-muted-foreground">
+                    Target: {request.quorumPercent}% approve votes to pass
+                  </div>
+                  
                   {voteProgress.total > 0 && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -445,8 +542,66 @@ function RequestFundDetailContent() {
               </Card>
             )}
 
-            {/* Voting Results - Show when voting is complete */}
-            {request.status !== 'voting' && (
+            {/* Donor Voting Progress */}
+            {request.status === 'donor_voting' && donorPhase && (
+              <Card className="bg-card border border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Vote className="h-5 w-5 text-primary" />
+                    <span>Donor Voting</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-accent rounded-lg">
+                      <div className="flex items-center justify-center space-x-2 mb-2">
+                        <ThumbsUp className="h-5 w-5 text-primary" />
+                        <span className="font-medium">Approve</span>
+                      </div>
+                      <div className="text-2xl font-bold text-foreground">{donorPhase.approve ?? 0}</div>
+                    </div>
+                    <div className="text-center p-4 bg-accent rounded-lg">
+                      <div className="flex items-center justify-center space-x-2 mb-2">
+                        <ThumbsDown className="h-5 w-5 text-destructive" />
+                        <span className="font-medium">Reject</span>
+                      </div>
+                      <div className="text-2xl font-bold text-foreground">{donorPhase.reject ?? 0}</div>
+                    </div>
+                  </div>
+                  <div className="text-center text-sm text-muted-foreground">
+                    Target: {request.quorumPercent ?? 50}% approve votes to pass
+                  </div>
+                  <div className="text-center text-sm text-muted-foreground">
+                    Deadline: {donorPhase.deadline ? new Date(donorPhase.deadline * 1000).toLocaleString() : ''}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Waiting Claim Status */}
+            {request.status === 'waiting_claim' && (
+              <Card className="bg-card border border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5 text-orange-500" />
+                    <span>Approved by Donors</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="text-sm font-medium text-orange-800 mb-1">
+                      Request Approved
+                    </div>
+                    <div className="text-xs text-orange-600">
+                      Waiting for beneficiary to claim funds
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Voting Results - Show when finalized */}
+            {(request.status === 'disbursed' || request.status === 'rejected') && (
               <Card className="bg-card border border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
@@ -485,12 +640,12 @@ function RequestFundDetailContent() {
                       {request.status === 'disbursed' ? (
                         <>
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          Request Approved & Disbursed
+                          Request Approved by Donors & Disbursed
                         </>
                       ) : (
                         <>
                           <AlertTriangle className="h-4 w-4 mr-2" />
-                          Request Rejected
+                          Request Rejected by Donors
                         </>
                       )}
                     </div>
@@ -515,7 +670,18 @@ function RequestFundDetailContent() {
                   {formatStatus(request.status)}
                 </Badge>
                 <p className="text-sm text-gray-600 mt-2">
-                  This request is currently under review by DAO members.
+                  {request.status === 'voting' 
+                    ? 'This request is currently under review by DAO members.'
+                    : request.status === 'donor_voting'
+                    ? 'This request has been approved by DAO and is now open for donor voting.'
+                    : request.status === 'waiting_claim'
+                    ? 'This request has been approved by donors and is waiting for the beneficiary to claim funds.'
+                    : request.status === 'disbursed'
+                    ? 'This request has been approved and funds have been disbursed.'
+                    : request.status === 'rejected'
+                    ? 'This request has been rejected by the community.'
+                    : 'This request is being processed.'
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -624,11 +790,30 @@ function RequestFundDetailContent() {
                       </Link>
                     </div>
                   )
+                ) : request.status === 'waiting_claim' ? (
+                  <div className="space-y-3">
+                    <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <Clock className="h-6 w-6 text-orange-600 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-orange-800">Approved by Donors</p>
+                      <p className="text-xs text-orange-600">Waiting for beneficiary to claim funds</p>
+                    </div>
+                    {address && address.toLowerCase() === request.beneficiaryAddress.toLowerCase() && (
+                      <Button onClick={handleClaim} disabled={donorVoting} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
+                        Claim Funds
+                      </Button>
+                    )}
+                    <Link href={`${BASESCAN_BASE_URL}/address/${DONATION_DAO_ADDRESS}`} target="_blank">
+                      <Button variant="outline" className="w-full">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View on BaseScan
+                      </Button>
+                    </Link>
+                  </div>
                 ) : request.status === 'disbursed' ? (
                   <div className="space-y-3">
                     <div className="text-center p-3 bg-primary/10 rounded-lg">
                       <CheckCircle className="h-6 w-6 text-primary mx-auto mb-2" />
-                      <p className="text-sm font-medium text-primary">Request Approved</p>
+                      <p className="text-sm font-medium text-primary">Request Approved by Donors</p>
                       <p className="text-xs text-muted-foreground">Funds have been disbursed</p>
                     </div>
                     <Link href={`${BASESCAN_BASE_URL}/address/${DONATION_DAO_ADDRESS}`} target="_blank">
@@ -640,11 +825,34 @@ function RequestFundDetailContent() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="text-center p-3 bg-destructive/10 rounded-lg">
-                      <AlertTriangle className="h-6 w-6 text-destructive mx-auto mb-2" />
-                      <p className="text-sm font-medium text-destructive">Request Rejected</p>
-                      <p className="text-xs text-muted-foreground">Voting has concluded</p>
-                    </div>
+                    {donorPhase?.active ? (
+                      <div className="space-y-3">
+                        <div className="text-center text-sm text-muted-foreground">
+                          Donor voting active. Deadline: {donorPhase.deadline ? new Date(donorPhase.deadline * 1000).toLocaleString() : ''}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button onClick={() => handleDonorVote(true)} disabled={donorVoting} className="bg-green-600 hover:bg-green-700 text-white">
+                            <ThumbsUp className="h-4 w-4 mr-1" /> Approve
+                          </Button>
+                          <Button onClick={() => handleDonorVote(false)} disabled={donorVoting} className="bg-red-600 hover:bg-red-700 text-white">
+                            <ThumbsDown className="h-4 w-4 mr-1" /> Reject
+                          </Button>
+                        </div>
+                      </div>
+                    ) : donorPhase && donorPhase.deadline && Date.now() / 1000 > (donorPhase.deadline || 0) ? (
+                      <div className="space-y-2">
+                        <Button onClick={handleFinalize} disabled={donorVoting} className="w-full">Finalize by Donors</Button>
+                        {address && address.toLowerCase() === request.beneficiaryAddress.toLowerCase() && (
+                          <Button onClick={handleClaim} disabled={donorVoting} variant="outline" className="w-full">Claim Funds</Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center p-3 bg-destructive/10 rounded-lg">
+                        <AlertTriangle className="h-6 w-6 text-destructive mx-auto mb-2" />
+                        <p className="text-sm font-medium text-destructive">Request Rejected by Donors</p>
+                        <p className="text-xs text-muted-foreground">Voting has concluded</p>
+                      </div>
+                    )}
                     <Link href={`${BASESCAN_BASE_URL}/address/${DONATION_DAO_ADDRESS}`} target="_blank">
                       <Button variant="outline" className="w-full">
                         <ExternalLink className="h-4 w-4 mr-2" />

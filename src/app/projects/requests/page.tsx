@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,47 @@ import {
   ArrowLeft,
   ChevronDown,
 } from "lucide-react";
-import { useOnchainStore } from "@/lib/store";
 import { getAllRequests } from "@/lib/contract";
 import { formatUSDT, formatAddress } from "@/lib/utils";
+
+type ContractRequest = {
+  id: bigint;
+  beneficiary: string;
+  amount: bigint;
+  description: string;
+  proofHash: string;
+  approveCount: bigint;
+  rejectCount: bigint;
+  paid: boolean;
+  done: boolean;
+  quorumPercent: number;
+  daoDecisionMade: boolean;
+  daoApproved: boolean;
+  donorVoteDeadline: bigint;
+  donorApproveCount: bigint;
+  donorRejectCount: bigint;
+  creationTimestamp: bigint;
+};
+
+type RequestData = {
+  id: string;
+  beneficiaryAddress: string;
+  amount: number;
+  description: string;
+  status: string;
+  createdAt: string;
+  approveCount: number;
+  rejectCount: number;
+  proofHash: string;
+  daoDecisionMade: boolean;
+  daoApproved: boolean;
+  paid: boolean;
+  done: boolean;
+  quorumPercent: number;
+  donorVoteDeadline: number;
+  donorApproveCount: number;
+  donorRejectCount: number;
+};
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -30,6 +68,10 @@ const getStatusIcon = (status: string) => {
       return <CheckCircle className="h-4 w-4 text-green-500" />;
     case "rejected":
       return <AlertTriangle className="h-4 w-4 text-red-500" />;
+    case "waiting_claim":
+      return <Clock className="h-4 w-4 text-orange-500" />;
+    case "donor_voting":
+      return <Clock className="h-4 w-4 text-blue-500" />;
     case "voting":
     default:
       return <Clock className="h-4 w-4 text-yellow-500" />;
@@ -42,9 +84,30 @@ const getStatusColor = (status: string) => {
       return "default";
     case "rejected":
       return "destructive";
+    case "waiting_claim":
+      return "secondary";
+    case "donor_voting":
+      return "secondary";
     case "voting":
     default:
       return "secondary";
+  }
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "voting":
+      return "DAO Voting";
+    case "donor_voting":
+      return "Donor Voting";
+    case "waiting_claim":
+      return "Waiting Claim";
+    case "disbursed":
+      return "Disbursed";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };
 
@@ -55,10 +118,9 @@ export default function RequestFundsPage() {
 function RequestFundsPageContent() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<RequestData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const { isConnected } = useOnchainStore();
 
   useEffect(() => {
     loadRequests();
@@ -98,7 +160,7 @@ function RequestFundsPageContent() {
       }
 
       // Transform contract data to display format
-      const transformedRequests = allRequests.map((req: any) => {
+      const transformedRequests = allRequests.map((req: ContractRequest): RequestData => {
         console.log("Processing request:", req);
 
         // Handle timestamp safely
@@ -123,11 +185,30 @@ function RequestFundsPageContent() {
           beneficiaryAddress: req.beneficiary,
           amount: Number(req.amount) / 1e6, // Convert from wei to USDT
           description: req.description || "No description provided",
-          status: req.done ? (req.paid ? "disbursed" : "rejected") : "voting",
+          status: req.done 
+            ? (req.paid ? "disbursed" : "rejected")
+            : req.daoDecisionMade
+              ? (req.daoApproved 
+                  ? (req.donorVoteDeadline > 0 && Date.now() / 1000 > Number(req.donorVoteDeadline)
+                      ? (Number(req.donorApproveCount) >= (Number(req.donorApproveCount) + Number(req.donorRejectCount)) * Number(req.quorumPercent) / 100
+                          ? "waiting_claim" 
+                          : "rejected")
+                      : "donor_voting")
+                  : "rejected")
+              : "voting",
           createdAt: createdAt.toISOString(),
           approveCount: Number(req.approveCount) || 0,
           rejectCount: Number(req.rejectCount) || 0,
           proofHash: req.proofHash || "",
+          // Additional fields for accurate status display
+          daoDecisionMade: Boolean(req.daoDecisionMade),
+          daoApproved: Boolean(req.daoApproved),
+          paid: Boolean(req.paid),
+          done: Boolean(req.done),
+          quorumPercent: Number(req.quorumPercent) || 50,
+          donorVoteDeadline: Number(req.donorVoteDeadline) || 0,
+          donorApproveCount: Number(req.donorApproveCount) || 0,
+          donorRejectCount: Number(req.donorRejectCount) || 0,
         };
       });
 
@@ -153,7 +234,9 @@ function RequestFundsPageContent() {
 
   const statusOptions = [
     { value: "all", label: "All Status", icon: <Filter className="h-4 w-4" />, color: "text-gray-600" },
-    { value: "voting", label: "Voting", icon: <Clock className="h-4 w-4" />, color: "text-yellow-600" },
+    { value: "voting", label: "DAO Voting", icon: <Clock className="h-4 w-4" />, color: "text-yellow-600" },
+    { value: "donor_voting", label: "Donor Voting", icon: <Clock className="h-4 w-4" />, color: "text-blue-600" },
+    { value: "waiting_claim", label: "Waiting Claim", icon: <Clock className="h-4 w-4" />, color: "text-orange-600" },
     { value: "disbursed", label: "Disbursed", icon: <CheckCircle className="h-4 w-4" />, color: "text-green-600" },
     { value: "rejected", label: "Rejected", icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-600" },
   ];
@@ -291,7 +374,7 @@ function RequestFundsPageContent() {
                       className="text-sm"
                     >
                       {getStatusIcon(request.status)}
-                      <span className="ml-1 capitalize">{request.status}</span>
+                      <span className="ml-1">{getStatusLabel(request.status)}</span>
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       #{request.id}
@@ -331,7 +414,7 @@ function RequestFundsPageContent() {
                       </span>
                     </div>
 
-                    {/* Voting Progress */}
+                    {/* DAO Voting Progress */}
                     {request.status === "voting" && (
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs">
@@ -356,6 +439,60 @@ function RequestFundsPageContent() {
                               }%`,
                             }}
                           />
+                        </div>
+                        <div className="text-xs text-muted-foreground text-center">
+                          Target: {request.quorumPercent}% approve votes to pass
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Donor Voting Progress */}
+                    {request.status === "donor_voting" && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-green-600">
+                            Approve: {request.donorApproveCount}
+                          </span>
+                          <span className="text-red-600">
+                            Reject: {request.donorRejectCount}
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1">
+                          <div
+                            className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${
+                                request.donorApproveCount + request.donorRejectCount > 0
+                                  ? (request.donorApproveCount /
+                                      (request.donorApproveCount +
+                                        request.donorRejectCount)) *
+                                    100
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground text-center">
+                          Target: {request.quorumPercent}% approve votes to pass
+                        </div>
+                        {request.donorVoteDeadline > 0 && (
+                          <div className="text-xs text-muted-foreground text-center">
+                            Deadline: {new Date(request.donorVoteDeadline * 1000).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Waiting Claim Status */}
+                    {request.status === "waiting_claim" && (
+                      <div className="space-y-2">
+                        <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-200">
+                          <div className="text-xs font-medium text-orange-800">
+                            Approved by Donors
+                          </div>
+                          <div className="text-xs text-orange-600">
+                            Waiting for beneficiary to claim funds
+                          </div>
                         </div>
                       </div>
                     )}

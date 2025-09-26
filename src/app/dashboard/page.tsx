@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { DollarSign, Users, TrendingUp, Activity, Clock, CheckCircle, Vote, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract';
+import { DONATION_DAO_ADDRESS, BASESCAN_BASE_URL } from '@/lib/contract-config';
 import { formatUSDT, formatAddress } from '@/lib/utils';
 import { useOnchainStore } from '@/lib/store';
 import { getDashboardStats } from '@/lib/contract';

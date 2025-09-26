@@ -15,6 +15,7 @@ export function Header() {
   const pathname = usePathname();
   const { isConnected, displayAddress, connectWallet, disconnectWallet, isConnecting } = useWallet();
   const isDaoMember = useOnchainStore((s) => s.isDaoMember);
+  const hasDonorSbt = useOnchainStore((s) => s.hasDonorSbt);
   const { theme, toggleTheme } = useTheme();
   const [isProjectsHovered, setIsProjectsHovered] = useState(false);
 
@@ -146,6 +147,11 @@ export function Header() {
                 {isDaoMember && (
                   <Badge className="hidden sm:inline-flex bg-transparent text-primary border-border">
                     DAO
+                  </Badge>
+                )}
+                {hasDonorSbt && (
+                  <Badge className="hidden sm:inline-flex bg-transparent text-primary border-border">
+                    DONOR
                   </Badge>
                 )}
                 <Button variant="ghost" size="sm" className="text-primary" onClick={disconnectWallet}>
