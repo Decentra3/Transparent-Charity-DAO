@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/useWallet';
 import { uploadToPinata } from '@/lib/upload';
 import { createRequestFund, createProjectOnChain, BASESCAN_BASE_URL, getFundBalance } from '@/lib/contract';
-import { generateUniqueId, generateProjectId } from '@/lib/utils/id-generator';
+import { generateUniqueId } from '@/lib/utils/id-generator';
 import { analyzeProposal, extractQuorumPercentage, type AIAnalysisResponse } from '@/lib/api/ai-analysis';
 
 type RequestType = 'request' | 'crowdfunding';
@@ -133,7 +133,8 @@ function RequestPageContent() {
     setAiAnalysis(null);
 
     try {
-      const projectId = generateProjectId();
+      const projectId = generateUniqueId(requestType === 'request' ? 'request' : 'project');
+      console.log('projectId', projectId);
       const docFile = formData.evidence[0]; // We only allow 1 file now
       const text = requestType === 'request' 
         ? formData.description.slice(0, 500) // Limit text length

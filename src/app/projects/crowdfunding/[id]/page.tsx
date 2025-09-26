@@ -23,6 +23,7 @@ import { donateToProject } from '@/lib/contract';
 import { closeProjectOnChain } from '@/lib/contract';
 import { getIPFSUrl, getFileType, formatIPFSHash } from '@/lib/ipfs';
 import { useDonatesByProject } from '@/hooks/useApi';
+import { getAIAnalysisResult, type AIAnalysisResponse } from '@/lib/api/ai-analysis';
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -116,6 +117,8 @@ function CrowdfundingDetailContent() {
   const [donationSuccess, setDonationSuccess] = useState<{ hash: string; amount: string } | null>(null);
   const [closing, setClosing] = useState(false);
   const [closeSuccessHash, setCloseSuccessHash] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResponse | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const { showToast } = useToast();
   
   const { data: projectDonations, isLoading: donationsLoading } = useDonatesByProject(
@@ -186,8 +189,31 @@ function CrowdfundingDetailContent() {
               ? (onchain.approved ? 'approved' : 'rejected')
               : 'voting',
             donorCount: 0,
-            aiAnalysis: getMockAIAnalysis(idStr),
+            aiAnalysis: getMockAIAnalysis(idStr), // Will be updated when AI analysis loads
           });
+
+          // Load AI analysis
+          setAiLoading(true);
+          try {
+            const aiResult = await getAIAnalysisResult(idStr);
+            setAiAnalysis(aiResult);
+            // Update project with real AI analysis
+            setProject(prev => prev ? {
+              ...prev,
+              aiAnalysis: {
+                fraudScore: aiResult.data.fraud_score,
+                recommendation: aiResult.data.recommendation,
+                confidence: 100 - aiResult.data.fraud_score,
+                riskFactors: aiResult.data.key_reasons,
+                positiveFactors: [],
+              }
+            } : prev);
+          } catch (error) {
+            console.warn('Failed to load AI analysis:', error);
+            setAiAnalysis(null);
+          } finally {
+            setAiLoading(false);
+          }
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error('[CrowdfundingDetail] error fetching onchain detail:', err)

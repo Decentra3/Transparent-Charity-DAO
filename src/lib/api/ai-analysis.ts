@@ -56,6 +56,35 @@ export async function analyzeProposal(request: AIAnalysisRequest): Promise<AIAna
 }
 
 /**
+ * Get AI analysis result by ID
+ */
+export async function getAIAnalysisResult(id: string): Promise<AIAnalysisResponse> {
+  const response = await fetch(`https://transparent-charity-dao-be-production.up.railway.app/api/proposals/result/${id}`, {
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      'accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let errorDetails = '';
+    try {
+      const errorText = await response.text();
+      errorDetails = errorText;
+      console.error('AI Analysis Result Error Details:', errorText);
+    } catch {
+      console.error('Could not read error response');
+    }
+    
+    throw new Error(`Failed to get AI analysis result: ${response.status} ${response.statusText}${errorDetails ? ` - ${errorDetails}` : ''}`);
+  }
+
+  const result = await response.json();
+  return result as AIAnalysisResponse;
+}
+
+/**
  * Extract quorum percentage from AI response
  * Converts "75%" to 75
  */

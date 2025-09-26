@@ -19,6 +19,7 @@ import { writeContract, waitForTransactionReceipt } from 'wagmi/actions';
 import { config } from '@/config';
 import { DonationDAOAbi } from '@/lib/abi/DonationDAO';
 import { getIPFSUrl, getFileType, formatIPFSHash } from '@/lib/ipfs';
+import { getAIAnalysisResult, type AIAnalysisResponse } from '@/lib/api/ai-analysis';
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -126,6 +127,8 @@ function RequestFundDetailContent() {
   const [donorPhase, setDonorPhase] = useState<{ active: boolean; deadline?: number; approve?: number; reject?: number } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResponse | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoaded && !isLoading) refresh();
@@ -180,9 +183,32 @@ function RequestFundDetailContent() {
                         : 'donor_voting')
                     : 'rejected')
                 : 'voting',
-            aiAnalysis: getMockAIAnalysis(),
+            aiAnalysis: getMockAIAnalysis(), // Will be updated when AI analysis loads
             quorumPercent: Number(onchain.quorumPercent ?? 50),
           });
+
+          // Load AI analysis
+          setAiLoading(true);
+          try {
+            const aiResult = await getAIAnalysisResult(idStr);
+            setAiAnalysis(aiResult);
+            // Update request with real AI analysis
+            setRequest(prev => prev ? {
+              ...prev,
+              aiAnalysis: {
+                fraudScore: aiResult.data.fraud_score,
+                recommendation: aiResult.data.recommendation,
+                confidence: 100 - aiResult.data.fraud_score,
+                riskFactors: aiResult.data.key_reasons,
+                positiveFactors: [],
+              }
+            } : prev);
+          } catch (error) {
+            console.warn('Failed to load AI analysis:', error);
+            setAiAnalysis(null);
+          } finally {
+            setAiLoading(false);
+          }
 
           // Donor vote phase detection via extra reader (extend ABI if needed). Here we infer from contract state via store not available.
           // Fallback: Try reading fields if present on "onchain" (depends on viem decoding). Use optional chaining safely.
